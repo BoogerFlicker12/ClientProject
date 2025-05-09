@@ -1,2 +1,2 @@
 # ClientProject
-Mr. Lee project go brrrrrrrrrrrrrr
+SMCS Symposium Schedule Mananger 

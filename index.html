@@ -1,19 +1,84 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Button Demo</title>
+  <meta charset="UTF-8">
+  <title>Schedule Generator</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      background-color: #f5f5f5;
+    }
+    h1 {
+      margin-bottom: 20px;
+    }
+    #drop-area {
+      border: 2px dashed #999;
+      border-radius: 10px;
+      padding: 30px;
+      text-align: center;
+      background-color: #fff;
+      margin-bottom: 20px;
+      width: 300px;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    input[type="file"] {
+      margin-top: 10px;
+    }
+  </style>
 </head>
 <body>
-  <h1>Welcome to My Page</h1>
-  <button onclick="showText()">Click me</button>
-  <p id="output" style="display: none;">Hello! You clicked the button.</p>
+
+  <h1>Upload Your Schedule File</h1>
+
+  <div id="drop-area">
+    <p>Drag and drop your file here</p>
+    <p>or</p>
+    <input type="file" id="fileElem" />
+  </div>
+
+  <button onclick="generateSchedule()">Generate Schedule</button>
 
   <script>
-    function showText() {
-      document.getElementById("output").style.display = "block";
+    function generateSchedule() {
+      console.log("Schedule generated!");
+      alert("Schedule generated! (Check console)");
     }
+
+    // Optional: drag and drop support
+    const dropArea = document.getElementById("drop-area");
+
+    dropArea.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      dropArea.style.borderColor = "#4CAF50";
+    });
+
+    dropArea.addEventListener("dragleave", () => {
+      dropArea.style.borderColor = "#999";
+    });
+
+    dropArea.addEventListener("drop", (e) => {
+      e.preventDefault();
+      dropArea.style.borderColor = "#999";
+      const files = e.dataTransfer.files;
+      document.getElementById("fileElem").files = files;
+      console.log("File dropped:", files[0]);
+    });
   </script>
+
 </body>
 </html>
+

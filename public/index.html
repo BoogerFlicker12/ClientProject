@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Schedify</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    #top-right {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      background-color: rgba(0, 0, 0, 0.5);
+    }
+
+    .modal-content {
+      background-color: #fff;
+      margin: 15% auto;
+      padding: 20px;
+      border-radius: 10px;
+      width: 300px;
+      text-align: center;
+    }
+
+    .modal-content input {
+      width: 80%;
+      padding: 8px;
+      margin: 10px 0;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+
+    .password-container {
+      position: relative;
+    }
+
+    #togglePassword {
+      position: absolute;
+      right: 30px;
+      top: 50%;
+      transform: translateY(-50%);
+      cursor: pointer;
+      font-size: 18px;
+      color: #555;
+      user-select: none;
+    }
+
+    .close {
+      color: #aaa;
+      float: right;
+      font-size: 28px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .close:hover {
+      color: black;
+    }
+
+    button {
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div id="top-right">
+    <button onclick="openLogin()">Login</button>
+  </div>
+
+  <main>
+    <h1>SMCS Symposium Schedule Generator</h1>
+    <form id="uploadForm">
+      <input type="file" id="csvFile" name="file" accept=".csv,.xls,.xlsx" required />
+      <button type="submit">Upload</button>
+    </form>
+    <section id="result">
+      <h2>Parsed Data:</h2>
+      <div id="error" style="color:red;"></div>
+      <table id="csvTable"></table>
+    </section>
+  </main>
+
+  <!-- Modal -->
+  <div id="loginModal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="closeLogin()">&times;</span>
+      <h2>Login</h2>
+      <input type="text" id="username" placeholder="Username" />
+      <div class="password-container">
+        <input type="password" id="password" placeholder="Password" />
+        <span id="togglePassword">👁️</span>
+      </div>
+      <button onclick="submitLogin()">Submit</button>
+    </div>
+  </div>
+
+  <script>
+    // Login Logic
+    const validUsers = [
+      { username: "alice", password: "password123" },
+      { username: "bob", password: "secure456" }
+    ];
+
+    const modal = document.getElementById("loginModal");
+
+    function openLogin() {
+      modal.style.display = "block";
+    }
+
+    function closeLogin() {
+      modal.style.display = "none";
+      document.getElementById("username").value = "";
+      document.getElementById("password").value = "";
+    }
+
+    function submitLogin() {
+      const usernameInput = document.getElementById("username").value;
+      const passwordInput = document.getElementById("password").value;
+
+      const user = validUsers.find(
+        u => u.username === usernameInput && u.password === passwordInput
+      );
+
+      if (user) {
+        sessionStorage.setItem("loggedInUser", user.username);
+        modal.style.display = "none";
+        showWelcome(user.username);
+      } else {
+        alert("Invalid username or password.");
+      }
+    }
+
+    document.getElementById("loginModal").addEventListener("keydown", function (event) {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        submitLogin();
+      }
+    });
+
+    document.getElementById("togglePassword").addEventListener("click", function () {
+      const passwordInput = document.getElementById("password");
+      passwordInput.type = passwordInput.type === "password" ? "text" : "password";
+    });
+
+    function showWelcome(username) {
+      const topRight = document.getElementById("top-right");
+      topRight.innerHTML = `<p>Welcome, <strong>${username}</strong></p>`;
+    }
+
+    window.onclick = function (event) {
+      if (event.target == modal) {
+        closeLogin();
+      }
+    };
+
+    // File Upload Logic (Unchanged)
+    const form = document.getElementById('uploadForm');
+    const table = document.getElementById('csvTable');
+    const resultSection = document.getElementById('result');
+    const errorDiv = document.getElementById('error');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fileInput = document.getElementById('csvFile');
+      const formData = new FormData();
+      formData.append('file', fileInput.files[0]);
+
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData
+      });
+
+      const data = await res.json();
+      errorDiv.textContent = '';
+      table.innerHTML = '';
+
+      if (data.rows) {
+        const headers = Object.keys(data.rows[0]);
+        table.innerHTML = `
+          <thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead>
+          <tbody>
+            ${data.rows.map(row => `
+              <tr>${headers.map(h => `<td>${row[h]}</td>`).join('')}</tr>
+            `).join('')}
+          </tbody>`;
+        resultSection.scrollIntoView({ behavior: 'smooth' });
+      } else {
+        let errorText = `Error uploading file: ${data.error}`;
+        if (data.missingHeaders) {
+          errorText += `\nMissing fields: ${data.missingHeaders.join(', ')}`;
+        }
+        errorDiv.textContent = errorText;
+      }
+    });
+  </script>
+</body>
+</html>

@@ -5,6 +5,7 @@
   <title>Schedify</title>
   <link rel="stylesheet" href="style.css" />
   <style>
+    /* Styling */
     #top-right {
       position: absolute;
       top: 20px;
@@ -83,6 +84,10 @@
       <input type="file" id="csvFile" name="file" accept=".csv,.xls,.xlsx" required />
       <button type="submit">Upload</button>
     </form>
+    <div style="margin-top: 20px;">
+      <button id="generateBtn">Generate Schedules</button>
+      <button onclick="openSettings()">Settings</button>
+    </div>
     <section id="result">
       <h2>Parsed Data:</h2>
       <div id="error" style="color:red;"></div>
@@ -90,7 +95,7 @@
     </section>
   </main>
 
-  <!-- Modal -->
+  <!-- Login Modal -->
   <div id="loginModal" class="modal">
     <div class="modal-content">
       <span class="close" onclick="closeLogin()">&times;</span>
@@ -104,14 +109,35 @@
     </div>
   </div>
 
-  <script>
-    // Login Logic
+  <!-- Settings Modal -->
+  <div id="settingsModal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="closeSettings()">&times;</span>
+      <h2>Settings</h2>
+
+      <label for="scheduleCount">Number of Schedules to Generate:</label>
+      <input type="number" id="scheduleCount" placeholder="e.g. 2" min="1" />
+
+      <label for="periodRange">Periods (e.g. 2-6):</label>
+      <input type="text" id="periodRange" placeholder="e.g. 2-6" />
+
+      <label for="roomsList">Available Rooms (comma-separated):</label>
+      <input type="text" id="roomsList" placeholder="e.g. 1602, Library, 1403" />
+
+      <button onclick="saveSettings()">Save</button>
+    </div>
+  </div>
+
+  <script type="module">
+    import { generateSchedule } from './generateSchedule.js';
+
+    const modal = document.getElementById("loginModal");
+    const settingsModal = document.getElementById("settingsModal");
+
     const validUsers = [
       { username: "alice", password: "password123" },
       { username: "bob", password: "secure456" }
     ];
-
-    const modal = document.getElementById("loginModal");
 
     function openLogin() {
       modal.style.display = "block";
@@ -133,7 +159,7 @@
 
       if (user) {
         sessionStorage.setItem("loggedInUser", user.username);
-        modal.style.display = "none";
+        closeLogin();
         showWelcome(user.username);
       } else {
         alert("Invalid username or password.");
@@ -158,12 +184,45 @@
     }
 
     window.onclick = function (event) {
-      if (event.target == modal) {
-        closeLogin();
-      }
+      if (event.target === modal) closeLogin();
+      if (event.target === settingsModal) closeSettings();
     };
 
-    // File Upload Logic (Unchanged)
+    function openSettings() {
+      settingsModal.style.display = "block";
+    }
+
+    function closeSettings() {
+      settingsModal.style.display = "none";
+    }
+
+    let settings = {
+      scheduleCount: 1,
+      periods: [2, 3, 4, 5, 6],
+      rooms: []
+    };
+
+    function saveSettings() {
+      const scheduleCountInput = parseInt(document.getElementById("scheduleCount").value.trim());
+      const periodInput = document.getElementById("periodRange").value;
+      const roomsInput = document.getElementById("roomsList").value;
+
+      if (isNaN(scheduleCountInput)) {
+        settings.scheduleCount = 1;
+      } else {
+        settings.scheduleCount = scheduleCountInput;
+      }
+
+      const [start, end] = periodInput.split('-').map(p => parseInt(p.trim()));
+      settings.periods = Array.from({ length: end - start + 1 }, (_, i) => start + i);
+      settings.rooms = roomsInput.split(',').map(r => r.trim());
+
+      console.log("Saved Settings:", settings);
+      closeSettings();
+    }
+
+    let studentData = [];
+
     const form = document.getElementById('uploadForm');
     const table = document.getElementById('csvTable');
     const resultSection = document.getElementById('result');
@@ -185,11 +244,12 @@
       table.innerHTML = '';
 
       if (data.rows) {
-        const headers = Object.keys(data.rows[0]);
+        studentData = data.rows;
+        const headers = Object.keys(studentData[0]);
         table.innerHTML = `
           <thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead>
           <tbody>
-            ${data.rows.map(row => `
+            ${studentData.map(row => `
               <tr>${headers.map(h => `<td>${row[h]}</td>`).join('')}</tr>
             `).join('')}
           </tbody>`;
@@ -201,6 +261,14 @@
         }
         errorDiv.textContent = errorText;
       }
+    });
+
+    document.getElementById("generateBtn").addEventListener("click", () => {
+      if (!studentData || studentData.length === 0) {
+        alert("Please upload student data before generating schedules.");
+        return;
+      }
+      generateSchedule(settings, studentData);
     });
   </script>
 </body>

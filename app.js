@@ -29,7 +29,7 @@ const fileFilter = (req, file, cb) => {
 
 const upload = multer({ storage, fileFilter });
 
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static('public'));;
 app.use(express.json());
 
 const REQUIRED_HEADERS = [
@@ -40,6 +40,7 @@ const REQUIRED_HEADERS = [
   'Project topic',
   'Availability'
 ];
+
 
 function normalize(header) {
   return header.trim().toLowerCase();

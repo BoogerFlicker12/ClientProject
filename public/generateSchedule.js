@@ -1,6 +1,6 @@
 // generateSchedule.js
 
-export function generateSchedule(settings, studentData) {
+function generateSchedule(settings, studentData) {
   console.log("Generating schedules with", settings, studentData);
   const { scheduleCount, periods, rooms } = settings;
 

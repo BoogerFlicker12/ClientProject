@@ -5,25 +5,21 @@
   <title>Schedify</title>
   <link rel="stylesheet" href="style.css" />
   <style>
-    /* Styling */
+    /* Your existing CSS */
     #top-right {
       position: absolute;
       top: 20px;
       right: 20px;
     }
-
     .modal {
       display: none;
       position: fixed;
       z-index: 1;
-      left: 0;
-      top: 0;
-      width: 100%;
-      height: 100%;
+      left: 0; top: 0;
+      width: 100%; height: 100%;
       overflow: auto;
       background-color: rgba(0, 0, 0, 0.5);
     }
-
     .modal-content {
       background-color: #fff;
       margin: 15% auto;
@@ -32,7 +28,6 @@
       width: 300px;
       text-align: center;
     }
-
     .modal-content input {
       width: 80%;
       padding: 8px;
@@ -40,11 +35,9 @@
       border: 1px solid #ccc;
       border-radius: 5px;
     }
-
     .password-container {
       position: relative;
     }
-
     #togglePassword {
       position: absolute;
       right: 30px;
@@ -55,7 +48,6 @@
       color: #555;
       user-select: none;
     }
-
     .close {
       color: #aaa;
       float: right;
@@ -63,11 +55,9 @@
       font-weight: bold;
       cursor: pointer;
     }
-
     .close:hover {
       color: black;
     }
-
     button {
       cursor: pointer;
     }
@@ -75,7 +65,7 @@
 </head>
 <body>
   <div id="top-right">
-    <button onclick="openLogin()">Login</button>
+    <button id="loginBtn">Login</button>
   </div>
 
   <main>
@@ -86,7 +76,7 @@
     </form>
     <div style="margin-top: 20px;">
       <button id="generateBtn">Generate Schedules</button>
-      <button onclick="openSettings()">Settings</button>
+      <button id="settingsBtn">Settings</button>
     </div>
     <section id="result">
       <h2>Parsed Data:</h2>
@@ -98,21 +88,21 @@
   <!-- Login Modal -->
   <div id="loginModal" class="modal">
     <div class="modal-content">
-      <span class="close" onclick="closeLogin()">&times;</span>
+      <span id="closeLoginBtn" class="close">&times;</span>
       <h2>Login</h2>
       <input type="text" id="username" placeholder="Username" />
       <div class="password-container">
         <input type="password" id="password" placeholder="Password" />
         <span id="togglePassword">👁️</span>
       </div>
-      <button onclick="submitLogin()">Submit</button>
+      <button id="submitLoginBtn">Submit</button>
     </div>
   </div>
 
   <!-- Settings Modal -->
   <div id="settingsModal" class="modal">
     <div class="modal-content">
-      <span class="close" onclick="closeSettings()">&times;</span>
+      <span id="closeSettingsBtn" class="close">&times;</span>
       <h2>Settings</h2>
 
       <label for="scheduleCount">Number of Schedules to Generate:</label>
@@ -124,152 +114,12 @@
       <label for="roomsList">Available Rooms (comma-separated):</label>
       <input type="text" id="roomsList" placeholder="e.g. 1602, Library, 1403" />
 
-      <button onclick="saveSettings()">Save</button>
+      <button id="saveSettingsBtn">Save</button>
     </div>
   </div>
 
-  <script type="module">
-    import { generateSchedule } from './generateSchedule.js';
-
-    const modal = document.getElementById("loginModal");
-    const settingsModal = document.getElementById("settingsModal");
-
-    const validUsers = [
-      { username: "alice", password: "password123" },
-      { username: "bob", password: "secure456" }
-    ];
-
-    function openLogin() {
-      modal.style.display = "block";
-    }
-
-    function closeLogin() {
-      modal.style.display = "none";
-      document.getElementById("username").value = "";
-      document.getElementById("password").value = "";
-    }
-
-    function submitLogin() {
-      const usernameInput = document.getElementById("username").value;
-      const passwordInput = document.getElementById("password").value;
-
-      const user = validUsers.find(
-        u => u.username === usernameInput && u.password === passwordInput
-      );
-
-      if (user) {
-        sessionStorage.setItem("loggedInUser", user.username);
-        closeLogin();
-        showWelcome(user.username);
-      } else {
-        alert("Invalid username or password.");
-      }
-    }
-
-    document.getElementById("loginModal").addEventListener("keydown", function (event) {
-      if (event.key === "Enter") {
-        event.preventDefault();
-        submitLogin();
-      }
-    });
-
-    document.getElementById("togglePassword").addEventListener("click", function () {
-      const passwordInput = document.getElementById("password");
-      passwordInput.type = passwordInput.type === "password" ? "text" : "password";
-    });
-
-    function showWelcome(username) {
-      const topRight = document.getElementById("top-right");
-      topRight.innerHTML = `<p>Welcome, <strong>${username}</strong></p>`;
-    }
-
-    window.onclick = function (event) {
-      if (event.target === modal) closeLogin();
-      if (event.target === settingsModal) closeSettings();
-    };
-
-    function openSettings() {
-      settingsModal.style.display = "block";
-    }
-
-    function closeSettings() {
-      settingsModal.style.display = "none";
-    }
-
-    let settings = {
-      scheduleCount: 1,
-      periods: [2, 3, 4, 5, 6],
-      rooms: []
-    };
-
-    function saveSettings() {
-      const scheduleCountInput = parseInt(document.getElementById("scheduleCount").value.trim());
-      const periodInput = document.getElementById("periodRange").value;
-      const roomsInput = document.getElementById("roomsList").value;
-
-      if (isNaN(scheduleCountInput)) {
-        settings.scheduleCount = 1;
-      } else {
-        settings.scheduleCount = scheduleCountInput;
-      }
-
-      const [start, end] = periodInput.split('-').map(p => parseInt(p.trim()));
-      settings.periods = Array.from({ length: end - start + 1 }, (_, i) => start + i);
-      settings.rooms = roomsInput.split(',').map(r => r.trim());
-
-      console.log("Saved Settings:", settings);
-      closeSettings();
-    }
-
-    let studentData = [];
-
-    const form = document.getElementById('uploadForm');
-    const table = document.getElementById('csvTable');
-    const resultSection = document.getElementById('result');
-    const errorDiv = document.getElementById('error');
-
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const fileInput = document.getElementById('csvFile');
-      const formData = new FormData();
-      formData.append('file', fileInput.files[0]);
-
-      const res = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData
-      });
-
-      const data = await res.json();
-      errorDiv.textContent = '';
-      table.innerHTML = '';
-
-      if (data.rows) {
-        studentData = data.rows;
-        const headers = Object.keys(studentData[0]);
-        table.innerHTML = `
-          <thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead>
-          <tbody>
-            ${studentData.map(row => `
-              <tr>${headers.map(h => `<td>${row[h]}</td>`).join('')}</tr>
-            `).join('')}
-          </tbody>`;
-        resultSection.scrollIntoView({ behavior: 'smooth' });
-      } else {
-        let errorText = `Error uploading file: ${data.error}`;
-        if (data.missingHeaders) {
-          errorText += `\nMissing fields: ${data.missingHeaders.join(', ')}`;
-        }
-        errorDiv.textContent = errorText;
-      }
-    });
-
-    document.getElementById("generateBtn").addEventListener("click", () => {
-      if (!studentData || studentData.length === 0) {
-        alert("Please upload student data before generating schedules.");
-        return;
-      }
-      generateSchedule(settings, studentData);
-    });
-  </script>
+  <!-- Link your external JS -->
+  <script src="generateSchedule.js"></script>
+  <script src="eventListener.js"></script>
 </body>
 </html>

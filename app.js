@@ -54,17 +54,48 @@ function validateHeaders(headers) {
   return missing;
 }
 
-function filterAndMapRows(rows) {
-  return rows.map(row => {
+function filterAndValidateRows(rows) {
+  const validRows = [];
+  const invalidRows = [];
+
+  for (const [i, row] of rows.entries()) {
     const filtered = {};
-    REQUIRED_HEADERS.forEach(h => {
-      // Try matching keys ignoring case and whitespace
+    const missingFields = [];
+    let isValid = true;
+
+    for (const h of REQUIRED_HEADERS) {
       const key = Object.keys(row).find(k => normalize(k) === normalize(h));
-      filtered[h] = key ? row[key] : '';
-    });
-    return filtered;
-  });
+      const value = key ? row[key] : '';
+      filtered[h] = value;
+
+      if (!value || value.trim() === '') {
+        isValid = false;
+        missingFields.push(h);
+      }
+    }
+
+    if (isValid) {
+      validRows.push(filtered);
+    } else {
+      // Build full identifier object for all REQUIRED_HEADERS with values or empty strings
+      const identifier = {};
+      for (const h of REQUIRED_HEADERS) {
+        const key = Object.keys(row).find(k => normalize(k) === normalize(h));
+        identifier[h] = key ? row[key] : '';
+      }
+
+      invalidRows.push({
+        row: i + 1, // 1-based row number
+        missingFields,
+        identifier
+      });
+    }
+  }
+
+  return { validRows, invalidRows };
 }
+
+
 
 app.post('/api/upload', upload.single('file'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded or invalid file type.' });
@@ -78,7 +109,7 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
 
     fs.createReadStream(req.file.path)
       .pipe(csv())
-      .on('headers', (headers) => {
+      .on('headers', function(headers) {
         missingHeaders = validateHeaders(headers);
         headersChecked = true;
         if (missingHeaders.length > 0) {
@@ -94,8 +125,14 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
             missingHeaders
           });
         }
-        const filtered = filterAndMapRows(results);
-        res.json({ rows: filtered });
+        const { validRows, invalidRows } = filterAndValidateRows(results);
+        if (invalidRows.length > 0) {
+          return res.status(400).json({
+            error: 'Some rows are missing required fields.',
+            invalidRows
+          });
+        }
+        res.json({ rows: validRows });
       })
       .on('error', (err) => {
         res.status(500).json({ error: 'Failed to parse CSV file.', details: err.message });
@@ -121,9 +158,14 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
         });
       }
 
-      const filtered = filterAndMapRows(rows);
-      res.json({ rows: filtered });
-
+      const { validRows, invalidRows } = filterAndValidateRows(rows);
+      if (invalidRows.length > 0) {
+        return res.status(400).json({
+          error: 'Some rows are missing required fields.',
+          invalidRows
+        });
+      }
+      res.json({ rows: validRows });
     } catch (err) {
       res.status(500).json({ error: 'Failed to parse Excel file.', details: err.message });
     }

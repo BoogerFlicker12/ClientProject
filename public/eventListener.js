@@ -60,6 +60,16 @@ function showWelcome(username) {
   topRight.innerHTML = `<p>Welcome, <strong>${username}</strong></p>`;
 }
 
+// Make sure this is defined globally for rendering invalid rows
+const REQUIRED_HEADERS = [
+  'Email Address',
+  'Last name',
+  'First name',
+  'Name of project',
+  'Project topic',
+  'Availability'
+];
+
 // File Upload Logic
 document.getElementById('uploadForm').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -87,6 +97,34 @@ document.getElementById('uploadForm').addEventListener('submit', async (e) => {
         `).join('')}
       </tbody>`;
     resultSection.scrollIntoView({ behavior: 'smooth' });
+
+  } else if (data.invalidRows) {
+    errorDiv.textContent = 'Some rows are missing required fields. Displaying invalid rows:';
+    const allHeadersSet = new Set(['Row #']);
+    data.invalidRows.forEach(row => {
+      Object.keys(row.identifier || {}).forEach(h => allHeadersSet.add(h));
+    });
+    REQUIRED_HEADERS.forEach(h => allHeadersSet.add(h));
+    const headers = [...REQUIRED_HEADERS];
+    table.innerHTML = `
+      <thead>
+        <tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>
+      </thead>
+      <tbody>
+        ${data.invalidRows.map(row => {
+          const cells = [];
+          for (const h of REQUIRED_HEADERS) {
+            const isMissing = row.missingFields.includes(h);
+            const value = row.identifier[h] || '';
+            cells.push(isMissing
+              ? `<td style="color: red; font-weight: bold;">MISSING_INFORMATION</td>`
+              : `<td>${value}</td>`);
+          }
+          return `<tr>${cells.join('')}</tr>`;
+        }).join('')}
+      </tbody>`;
+
+    resultSection.scrollIntoView({ behavior: 'smooth' });
   } else {
     let errorText = `Error uploading file: ${data.error}`;
     if (data.missingHeaders) {
@@ -95,6 +133,7 @@ document.getElementById('uploadForm').addEventListener('submit', async (e) => {
     errorDiv.textContent = errorText;
   }
 });
+
 
 // Settings modal open/close
 document.getElementById("settingsBtn").addEventListener("click", () => {
@@ -143,6 +182,10 @@ document.getElementById("generateBtn").addEventListener("click", () => {
     return;
   }
   if (typeof generateSchedule === "function") {
+    for (const student of studentData) {
+      student.availabilityParsed = parseAvailability(student.Availability);
+    }
+    console.log("Student Data being passed to generateSchedule:", studentData);
     generateSchedule(settings, studentData);
   } else {
     alert("generateSchedule function is not defined.");

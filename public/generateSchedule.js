@@ -1,5 +1,5 @@
 // generateSchedule.js
-
+//We are assuming everythings in the format we want it to be
 function generateSchedule(settings, studentData) {
   console.log("Generating schedules with", settings, studentData);
   const { scheduleCount, periods, rooms } = settings;
@@ -9,89 +9,174 @@ function generateSchedule(settings, studentData) {
     return;
   }
 
-  // 1. Extract all availability dates
+  //Calculates frequent dates and periods combos
   const datePeriodFrequency = {};
   for (const student of studentData) {
-    for (const entry of student.availabilityParsed || []) {
+    for (const entry of student.availabilityParsed) {
       const key = `${entry.date}|||${entry.period}`;
       datePeriodFrequency[key] = (datePeriodFrequency[key] || 0) + 1;
     }
-  } 
-
-
-const totalStudents = studentData.length;
-
-const viableSlots = Object.entries(datePeriodFrequency)
-  .filter(([_, count]) => count === totalStudents)
-  .map(([key]) => {
-    const [date, period] = key.split("|||");
-    return { date, period };
-  });
-
-const viableDates = [...new Set(viableSlots.map(slot => slot.date))];
-const dateFrequency = {};
-
-// Calculate total availability count per date (regardless of period)
-for (const student of studentData) {
-  for (const entry of student.availabilityParsed || []) {
-    dateFrequency[entry.date] = (dateFrequency[entry.date] || 0) + 1;
   }
-}
-
-let selectedDates;
-if (viableDates.length >= scheduleCount) {
-  selectedDates = viableDates.slice(0, scheduleCount);
-} else {
-  alert("Full schedule not possible with given student availability. Displaying closest match.");
-  selectedDates = Object.entries(dateFrequency)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, scheduleCount)
-    .map(([date]) => date);
-}
-const selectedSlots = viableSlots.filter(slot => selectedDates.includes(slot.date));
-
-
-
-  // 2. Group students by topic
-  const topicGroups = {};
+  //Calculate most frequent dates (ignoring period)
+  const dateFrequency = {};
   for (const student of studentData) {
-    const topic = (student.topic || "").toLowerCase();
-    if (!topicGroups[topic]) topicGroups[topic] = [];
-    topicGroups[topic].push(student);
-  }
-
-  // Flatten into flexible room groups
-  const roomAssignments = [];
-  const topics = Object.keys(topicGroups);
-
-  // Step 1: Build room assignments (groups of students by topic)
-  while (topics.length > 0) {
-    const roomGroup = [];
-    while (roomGroup.length < 3 && topics.length > 0) {
-      const topic = topics.shift();
-      roomGroup.push(...topicGroups[topic]);
+    for (const entry of student.availabilityParsed) {
+      dateFrequency[entry.date] = (dateFrequency[entry.date] || 0) + 1;
     }
-    roomAssignments.push(roomGroup);
   }
 
-  // Step 2: Check if enough room-timeslots are available
-  const totalGroups = roomAssignments.length;
-  const totalAvailableSlots = selectedSlots.length * rooms.length;
+  const totalStudents = studentData.length;
+  const commonDates = [];
 
-  console.log({
-    totalGroups,
-    selectedSlots: selectedSlots.length,
-    rooms: rooms.length,
-    totalAvailableSlots
-  });
+  for(const date in dateFrequency) {
+    const count = dateFrequency[date];
 
-  if (totalAvailableSlots < totalGroups) {
-    alert(`Not enough rooms or time slots to schedule all groups.\nRequired: ${totalGroups}, Available: ${totalAvailableSlots}`);
-    return;
+    if (count === totalStudents) {
+      commonDates.push(date);
+    }
   }
 
+  let selectedDates = []; 
+  if (commonDates.length >= scheduleCount) {
+    selectedDates = commonDates.slice(0, scheduleCount);
+  } else {
+    alert("");
+    topEntries = Object.entries(dateFrequency)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, scheduleCount);
+    
+    selectedDates = [];
+    for (const entry of topEntries) {
+      selectedDates.push(entry[0]);
+    }
+  } 
+  
+  const selectedSlots = Object.entries(datePeriodFrequency)
+    .map(([key, count]) => {
+      const [date, period] = key.split("|||");
+      return { date, period, count };
+    })
+    .filter(({ date }) => selectedDates.includes(date));
+
+  // Group students by topic
+const topicGroups = {};
+for (const student of studentData) {
+  const topic = (student["Project topic"] || "").toLowerCase();
+  if (!topicGroups[topic]) topicGroups[topic] = [];
+  topicGroups[topic].push(student);
+}
+
+console.log("DEBUG: Topic groups and student counts:");
+for (const [topic, students] of Object.entries(topicGroups)) {
+  console.log(`Topic "${topic}": ${students.length} student(s)`);
+}
+
+
+const topics = Object.keys(topicGroups);
+const totalSlotsPerRoom = selectedSlots.length; // total periods across all dates for scheduling
+const roomsCount = rooms.length;
+
+// 1. Assign each topic a "primary" room (looping through rooms)
+const topicRoomMap = {};
+topics.forEach((topic, i) => {
+  topicRoomMap[topic] = rooms[i % roomsCount];
+});
+
+// 2. Track how many presentations are assigned per room
+const roomAssignmentsMap = {};
+// Also track what topics are assigned to each room (as a Set to avoid duplicates)
+const roomTopicsMap = {};
+for (const room of rooms) {
+  roomAssignmentsMap[room] = {
+    capacity: totalSlotsPerRoom,
+    assignedCount: 0,
+    students: []
+  };
+  roomTopicsMap[room] = new Set();
+}
+
+// 3. Assign students to their topic's primary room first,
+// but if the room is full, spill over into rooms with free capacity
+for (const topic of topics) {
+  const studentsForTopic = topicGroups[topic];
+  const primaryRoom = topicRoomMap[topic];
+
+  for (const student of studentsForTopic) {
+    let assignedRoom = null;
+
+    // Try to assign to primary room first
+      // Try to assign to primary room first
+    if (roomAssignmentsMap[primaryRoom].assignedCount < roomAssignmentsMap[primaryRoom].capacity) {
+      roomAssignmentsMap[primaryRoom].students.push(student);
+      roomAssignmentsMap[primaryRoom].assignedCount++;
+      roomTopicsMap[primaryRoom].add(topic);
+      assignedRoom = primaryRoom;
+    } else {
+      // Spillover: try to find any other room with available capacity
+      const alternativeRoom = rooms.find(r => roomAssignmentsMap[r].assignedCount < roomAssignmentsMap[r].capacity);
+      if (alternativeRoom) {
+        roomAssignmentsMap[alternativeRoom].students.push(student);
+        roomAssignmentsMap[alternativeRoom].assignedCount++;
+        roomTopicsMap[alternativeRoom].add(topic);
+        assignedRoom = alternativeRoom;
+      } else {
+        // No rooms available - handle as needed
+        console.warn(`No available room slots for student ${student["First name"]} ${student["Last name"]} (topic: ${topic})`);
+      }
+    }
+  }
+}
+
+// 4. Flatten roomAssignmentsMap into an array of room groups for scheduling
+const roomAssignments = [];
+for (const room of rooms) {
+  roomAssignments.push(roomAssignmentsMap[room].students);
+}
+
+// Optional: Convert roomTopicsMap Sets to arrays for easier use/display
+const roomTopics = {};
+for (const room of rooms) {
+  roomTopics[room] = Array.from(roomTopicsMap[room]);
+}
+
+// --- NEW nicely formatted console output ---
+
+console.log("=== Room Topics Assigned ===");
+for (const room of rooms) {
+  const topicsList = roomTopics[room].length > 0 ? roomTopics[room].join(", ") : "(no topics assigned)";
+  console.log(`${room}: ${topicsList}`);
+}
+
+console.log("\n=== Students Assigned Per Room ===");
+for (const room of rooms) {
+  const students = roomAssignmentsMap[room].students;
+  console.log(`${room} (${students.length} students):`);
+  if (students.length === 0) {
+    console.log("  (no students assigned)");
+  } else {
+    for (const student of students) {
+      console.log(`  - ${student["First name"]} ${student["Last name"]} (Topic: ${student["Project topic"] || "N/A"})`);
+    }
+  }
+}
+
+const totalPresentations = studentData.length;
+const totalAvailableSlots = selectedSlots.length * rooms.length;
+
+console.log("\nSummary:");
+console.log("Total presentations:", totalPresentations);
+console.log("Total selected slots:", selectedSlots.length);
+console.log("Number of rooms:", rooms.length);
+console.log("Total available slots (slots * rooms):", totalAvailableSlots);
+
+if (totalAvailableSlots < totalPresentations) {
+  alert(`Not enough room slots for all presentations.\nRequired: ${totalPresentations}, Available: ${totalAvailableSlots}`);
+  return;
+}
+
+  const totalGroups = topics.length;
   // Step 3: If fewer rooms are actually needed, trim the rooms array to only what's needed
-  const maxRoomsNeededPerSlot = Math.ceil(totalGroups / selectedSlots.length);
+  const maxRoomsNeededPerSlot = Math.max(1, Math.ceil(totalGroups / selectedSlots.length));
   const roomsToUse = rooms.slice(0, maxRoomsNeededPerSlot);
 
 
@@ -109,9 +194,9 @@ const selectedSlots = viableSlots.filter(slot => selectedDates.includes(slot.dat
         if (!available) continue;
 
         finalSchedule.push({
-          name: `${student.firstName} ${student.lastName}`,
-          topic: student.topic,
-          projectName: student.projectName,
+          name: `${student["First name"]} ${student["Last name"]}`,
+          topic: student["Project topic"] || "",
+          projectName: student["Project name"] || "",
           date,
           period,
           room
@@ -132,7 +217,7 @@ function parseAvailability(rawAvailabilityString) {
   for (let i = 0; i < entries.length - 1; i++) {
     if (entries[i].startsWith("PD")) {
       const period = entries[i];
-      const date = entries[i + 1]; // e.g., "Tuesday, December 19th"
+      const date = entries[i + 1]; // e.g., "December 19th"
       parsed.push({ period, date });
       i++; // Skip date for next loop
     }

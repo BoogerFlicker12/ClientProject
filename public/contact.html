@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Contact Us - Schedify</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Inter', sans-serif;
+      background-color: #fff5f5;
+      color: #4a0000;
+    }
+
+    .container {
+      display: flex;
+      flex-wrap: wrap;
+      min-height: 100vh;
+    }
+
+    .form-section, .info-section {
+      flex: 1;
+      padding: 40px;
+      box-sizing: border-box;
+    }
+
+    .form-section {
+      background-color: #fff5f5;
+    }
+
+    .info-section {
+      background-color: #d32f2f;
+      color: white;
+    }
+
+    h2 {
+      color: #b30000;
+      margin-bottom: 20px;
+    }
+
+    .info-section h2 {
+      color: #fff;
+    }
+
+    input, textarea {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 16px;
+      border: 1px solid #d32f2f;
+      border-radius: 6px;
+      box-sizing: border-box;
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+    }
+
+    textarea {
+      resize: vertical;
+      height: 120px;
+    }
+
+    button {
+      background-color: #d32f2f;
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 6px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    button:hover {
+      background-color: #b71c1c;
+    }
+
+    .info-item {
+      margin-bottom: 20px;
+    }
+
+    .info-item strong {
+      display: block;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+
+    .success-message, .error-message {
+      margin-top: 10px;
+      padding: 10px;
+      border-radius: 5px;
+      display: none;
+    }
+
+    .success-message {
+      background-color: #d4edda;
+      color: #155724;
+    }
+
+    .error-message {
+      background-color: #f8d7da;
+      color: #721c24;
+    }
+
+    @media (max-width: 768px) {
+      .container {
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="form-section">
+      <h2>Get in Touch</h2>
+      <form id="contactForm" action="https://formspree.io/f/xanjyera" method="POST">
+        <input type="text" name="name" placeholder="Name" required />
+        <input type="email" name="email" placeholder="Email" required />
+        <input type="text" name="subject" placeholder="Subject" required />
+        <textarea name="message" placeholder="Your message" required></textarea>
+        <button type="submit">Send Message</button>
+        <div class="success-message" id="successMessage">Message sent successfully!</div>
+        <div class="error-message" id="errorMessage">Something went wrong. Please try again.</div>
+      </form>
+    </div>
+
+    <div class="info-section">
+      <h2>Contact Us</h2>
+      <div class="info-item">
+        <strong>Address:</strong>
+        17501 W Willard Rd<br>Poolesville, MD 20837
+      </div>
+      <div class="info-item">
+        <strong>Phone:</strong>
+        +1 240 805 0928
+      </div>
+      <div class="info-item">
+        <strong>Email:</strong>
+        smcs2027.schedify@gmail.com
+      </div>
+      <div class="info-item">
+        <strong>Website:</strong>
+        smcs-symposium-schedule-generator.onrender.com
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('contactForm');
+    const successMessage = document.getElementById('successMessage');
+    const errorMessage = document.getElementById('errorMessage');
+
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      const formData = new FormData(form);
+      fetch(form.action, {
+        method: 'POST',
+        body: formData,
+        headers: { 'Accept': 'application/json' }
+      }).then(response => {
+        if (response.ok) {
+          successMessage.style.display = 'block';
+          errorMessage.style.display = 'none';
+          form.reset();
+        } else {
+          successMessage.style.display = 'none';
+          errorMessage.style.display = 'block';
+        }
+      }).catch(error => {
+        successMessage.style.display = 'none';
+        errorMessage.style.display = 'block';
+      });
+    });
+  </script>
+</body>
+</html>

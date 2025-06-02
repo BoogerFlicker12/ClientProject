@@ -16,7 +16,7 @@ let settings = {
   rooms: []
 };
 
-let studentData = null; // placeholder for parsed student data from upload
+let studentData = null; 
 
 // Login modal open/close
 document.getElementById("loginBtn").addEventListener("click", () => {
@@ -60,7 +60,7 @@ function showWelcome(username) {
   topRight.innerHTML = `<p>Welcome, <strong>${username}</strong></p>`;
 }
 
-// Make sure this is defined globally for rendering invalid rows
+
 const REQUIRED_HEADERS = [
   'Email Address',
   'Last name',
@@ -87,7 +87,7 @@ document.getElementById('uploadForm').addEventListener('submit', async (e) => {
   table.innerHTML = '';
 
   if (data.rows) {
-    studentData = data.rows; // store for use in generate schedule
+    studentData = data.rows; 
     const headers = Object.keys(data.rows[0]);
     table.innerHTML = `
       <thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead>

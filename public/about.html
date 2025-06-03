@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>About</title>
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    /* Optional basic styling for demonstration */
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+
+    .navbar {
+      background-color: #333;
+      overflow: hidden;
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .navbar ul {
+      list-style-type: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      gap: 20px;
+    }
+
+    .navbar li {
+      display: inline;
+    }
+
+    .navbar a {
+      color: white;
+      text-decoration: none;
+      padding: 8px 12px;
+    }
+
+    .navbar a:hover {
+      background-color: #575757;
+      border-radius: 4px;
+    }
+
+    .home-button img {
+      width: 24px;
+      height: 24px;
+    }
+
+    #loginBtn {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+
+    #loginBtn:hover {
+      background-color: #45a049;
+    }
+
+    .content {
+      padding: 40px 20px;
+      max-width: 800px;
+      margin: auto;
+    }
+
+    .content h1 {
+      font-size: 2em;
+      margin-bottom: 20px;
+    }
+
+    .content p {
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+
+  <nav class="navbar">
+    <ul>
+      <li>
+        <a href="index.html" class="home-button">
+          <img src="Elements/homeButtonIcon.png" alt="Home" />
+        </a>
+      </li>
+      <li><a href="editor.html">Editor</a></li>
+      <li><a href="about.html">About</a></li>
+      <li><a href="contact.html">Contact</a></li>
+    </ul>
+    <button id="loginBtn">Login</button>
+  </nav>
+
+  <div class="content">
+    <h1>About This Project</h1>
+    <p>
+      Welcome to our website! This project was created to provide an intuitive and powerful platform for users to create, edit, and share content seamlessly.
+      Our goal is to combine usability with flexibility, allowing both beginners and experienced users to get the most out of our tools.
+    </p>
+    <p>
+      Whether you're using the editor to draft a creative piece, collaborate on a school project, or just explore ideas, we are committed to offering a clean and efficient interface.
+      We're continuously improving the platform based on your feedback and evolving needs.
+    </p>
+    <p>
+      Thank you for visiting, and we hope you enjoy the experience!
+    </p>
+  </div>
+
+</body>
+</html>

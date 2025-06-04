@@ -1,4 +1,6 @@
 // Login Logic
+console.log("eventListener.js loaded");
+
 const validUsers = [
   { username: "alice", password: "password123" },
   { username: "bob", password: "secure456" }
@@ -16,7 +18,7 @@ let settings = {
   rooms: []
 };
 
-let studentData = null; 
+let studentData = null;
 
 // Login modal open/close
 document.getElementById("loginBtn").addEventListener("click", () => {
@@ -37,7 +39,7 @@ function submitLogin() {
     u => u.username === usernameInput && u.password === passwordInput
   );
   if (user) {
-    sessionStorage.setItem("loggedInUser", user.username);
+    localStorage.setItem("loggedInUser", user.username);
     closeLogin();
     showWelcome(user.username);
   } else {
@@ -45,13 +47,13 @@ function submitLogin() {
   }
 }
 document.getElementById("submitLoginBtn").addEventListener("click", submitLogin);
-document.getElementById("loginModal").addEventListener("keydown", function(event) {
+document.getElementById("loginModal").addEventListener("keydown", function (event) {
   if (event.key === "Enter") {
     event.preventDefault();
     submitLogin();
   }
 });
-document.getElementById("togglePassword").addEventListener("click", function() {
+document.getElementById("togglePassword").addEventListener("click", function () {
   const passwordInput = document.getElementById("password");
   passwordInput.type = passwordInput.type === "password" ? "text" : "password";
 });
@@ -87,7 +89,7 @@ document.getElementById('uploadForm').addEventListener('submit', async (e) => {
   table.innerHTML = '';
 
   if (data.rows) {
-    studentData = data.rows; 
+    studentData = data.rows;
     const headers = Object.keys(data.rows[0]);
     table.innerHTML = `
       <thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead>
@@ -112,16 +114,16 @@ document.getElementById('uploadForm').addEventListener('submit', async (e) => {
       </thead>
       <tbody>
         ${data.invalidRows.map(row => {
-          const cells = [];
-          for (const h of REQUIRED_HEADERS) {
-            const isMissing = row.missingFields.includes(h);
-            const value = row.identifier[h] || '';
-            cells.push(isMissing
-              ? `<td style="color: red; font-weight: bold;">MISSING_INFORMATION</td>`
-              : `<td>${value}</td>`);
-          }
-          return `<tr>${cells.join('')}</tr>`;
-        }).join('')}
+      const cells = [];
+      for (const h of REQUIRED_HEADERS) {
+        const isMissing = row.missingFields.includes(h);
+        const value = row.identifier[h] || '';
+        cells.push(isMissing
+          ? `<td style="color: red; font-weight: bold;">MISSING_INFORMATION</td>`
+          : `<td>${value}</td>`);
+      }
+      return `<tr>${cells.join('')}</tr>`;
+    }).join('')}
       </tbody>`;
 
     resultSection.scrollIntoView({ behavior: 'smooth' });
@@ -143,7 +145,7 @@ document.getElementById("closeSettingsBtn").addEventListener("click", () => {
   settingsModal.style.display = "none";
 });
 
-window.onclick = function(event) {
+window.onclick = function (event) {
   if (event.target === modal) closeLogin();
   if (event.target === settingsModal) settingsModal.style.display = "none";
 };
@@ -189,6 +191,13 @@ document.getElementById("generateBtn").addEventListener("click", () => {
     generateSchedule(settings, studentData);
   } else {
     alert("generateSchedule function is not defined.");
+  }
+});
+
+window.addEventListener('DOMContentLoaded', () => {
+  const loggedInUser = localStorage.getItem("loggedInUser");
+  if (loggedInUser) {
+    showWelcome(loggedInUser);
   }
 });
 

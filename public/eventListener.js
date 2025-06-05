@@ -1,12 +1,11 @@
-// Login Logic
 console.log("eventListener.js loaded");
+console.log("Logged in user on load:", localStorage.getItem("loggedInUser"));
 
 const validUsers = [
   { username: "alice", password: "password123" },
   { username: "bob", password: "secure456" }
 ];
 
-const modal = document.getElementById("loginModal");
 const settingsModal = document.getElementById("settingsModal");
 const errorDiv = document.getElementById('error');
 const table = document.getElementById('csvTable');
@@ -20,47 +19,75 @@ let settings = {
 
 let studentData = null;
 
-// Login modal open/close
-document.getElementById("loginBtn").addEventListener("click", () => {
-  modal.style.display = "block";
-});
-document.getElementById("closeLoginBtn").addEventListener("click", () => {
-  closeLogin();
-});
-function closeLogin() {
-  modal.style.display = "none";
-  document.getElementById("username").value = "";
-  document.getElementById("password").value = "";
-}
-function submitLogin() {
-  const usernameInput = document.getElementById("username").value;
-  const passwordInput = document.getElementById("password").value;
-  const user = validUsers.find(
-    u => u.username === usernameInput && u.password === passwordInput
-  );
-  if (user) {
-    localStorage.setItem("loggedInUser", user.username);
+const loginBtn = document.getElementById("loginBtn");
+const loginModal = document.getElementById("loginModal");
+const closeLoginBtn = document.getElementById("closeLoginBtn");
+const togglePassword = document.getElementById("togglePassword");
+const usernameInput = document.getElementById("username");
+const passwordInput = document.getElementById("password");
+const submitLoginBtn = document.getElementById("submitLoginBtn");
+
+if (loginBtn && loginModal && closeLoginBtn && togglePassword && usernameInput && passwordInput && submitLoginBtn) {
+  loginBtn.addEventListener("click", () => {
+    loginModal.style.display = "block";
+  });
+
+  closeLoginBtn.addEventListener("click", () => {
     closeLogin();
-    showWelcome(user.username);
-  } else {
-    alert("Invalid username or password.");
+  });
+
+  togglePassword.addEventListener("click", () => {
+    passwordInput.type = passwordInput.type === "password" ? "text" : "password";
+  });
+
+  submitLoginBtn.addEventListener("click", submitLogin);
+
+  loginModal.addEventListener("keydown", function (event) {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      submitLogin();
+    }
+  });
+
+  window.addEventListener("click", function (event) {
+    if (event.target === loginModal) {
+      closeLogin();
+    }
+  });
+
+  function closeLogin() {
+    loginModal.style.display = "none";
+    usernameInput.value = "";
+    passwordInput.value = "";
   }
+
+  function submitLogin() {
+    const user = validUsers.find(
+      u => u.username === usernameInput.value && u.password === passwordInput.value
+    );
+    if (user) {
+      localStorage.setItem("loggedInUser", user.username);
+      closeLogin();
+      showWelcome(user.username);
+    } else {
+      alert("Invalid username or password.");
+    }
+  }
+
 }
-document.getElementById("submitLoginBtn").addEventListener("click", submitLogin);
-document.getElementById("loginModal").addEventListener("keydown", function (event) {
-  if (event.key === "Enter") {
-    event.preventDefault();
-    submitLogin();
-  }
-});
-document.getElementById("togglePassword").addEventListener("click", function () {
-  const passwordInput = document.getElementById("password");
-  passwordInput.type = passwordInput.type === "password" ? "text" : "password";
-});
+
 function showWelcome(username) {
-  const topRight = document.getElementById("top-right");
-  topRight.innerHTML = `<p>Welcome, <strong>${username}</strong></p>`;
+  document.getElementById("loginBtn").style.display = "none";
+  const welcomeMsg = document.getElementById("welcomeMsg");
+  document.getElementById("usernameDisplay").textContent = username;
+  welcomeMsg.style.display = "block";
 }
+
+function showLogin() {
+  document.getElementById("loginBtn").style.display = "inline-block";
+  document.getElementById("welcomeMsg").style.display = "none";
+}
+
 
 
 const REQUIRED_HEADERS = [
@@ -146,8 +173,12 @@ document.getElementById("closeSettingsBtn").addEventListener("click", () => {
 });
 
 window.onclick = function (event) {
-  if (event.target === modal) closeLogin();
-  if (event.target === settingsModal) settingsModal.style.display = "none";
+  if (loginModal && event.target === loginModal) {
+    closeLogin();
+  }
+  if (settingsModal && event.target === settingsModal) {
+    settingsModal.style.display = "none";
+  }
 };
 
 // Save settings
@@ -198,6 +229,7 @@ window.addEventListener('DOMContentLoaded', () => {
   const loggedInUser = localStorage.getItem("loggedInUser");
   if (loggedInUser) {
     showWelcome(loggedInUser);
+  } else {
+    showLogin();
   }
 });
-

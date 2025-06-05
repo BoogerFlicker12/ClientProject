@@ -1,8 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
+  <link rel="icon" type="image/x-icon" href="Elements/favicon.ico" />
+  <link rel="icon" type="image/x-icon" href="Elements/favicon.ico" />
   <title>Contact Us - Schedify</title>
+  <link rel="stylesheet" href="style.css" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
     body {
@@ -18,7 +22,8 @@
       min-height: 100vh;
     }
 
-    .form-section, .info-section {
+    .form-section,
+    .info-section {
       flex: 1;
       padding: 40px;
       box-sizing: border-box;
@@ -36,13 +41,20 @@
     h2 {
       color: #b30000;
       margin-bottom: 20px;
+      text-align: left;
+      animation: none !important;
+      opacity: 1 !important;
     }
 
     .info-section h2 {
       color: #fff;
+      text-align: left;
+      animation: none !important;
+      opacity: 1 !important;
     }
 
-    input, textarea {
+    input,
+    textarea {
       width: 100%;
       padding: 12px;
       margin-bottom: 16px;
@@ -83,7 +95,8 @@
       margin-bottom: 5px;
     }
 
-    .success-message, .error-message {
+    .success-message,
+    .error-message {
       margin-top: 10px;
       padding: 10px;
       border-radius: 5px;
@@ -107,8 +120,28 @@
     }
   </style>
 </head>
-<body>
 
+<body>
+  <nav class="navbar">
+    <ul>
+      <li>
+        <a href="index.html" class="home-button">
+          <img src="Elements/homeButtonIcon.png" alt="Home" />
+        </a>
+      </li>
+      <li><a href="editor.html">Editor</a></li>
+      <li><a href="about.html">About</a></li>
+      <li><a href="contact.html">Contact</a></li>
+    </ul>
+    <div id="top-right">
+      <button id="loginBtn">Login</button>
+      <p id="welcomeMsg" style="display:none;">
+        Welcome, <strong id="usernameDisplay"></strong>
+      </p>
+    </div>
+
+
+  </nav>
   <div class="container">
     <div class="form-section">
       <h2>Get in Touch</h2>
@@ -171,5 +204,22 @@
       });
     });
   </script>
+
+  <!-- Login Modal -->
+  <div id="loginModal" class="modal">
+    <div class="modal-content">
+      <span id="closeLoginBtn" class="close">&times;</span>
+      <h3>Login</h3>
+      <input type="text" id="username" placeholder="Username" />
+      <div class="password-container">
+        <input type="password" id="password" placeholder="Password" />
+        <span id="togglePassword">👁️</span>
+      </div>
+      <button id="submitLoginBtn">Submit</button>
+    </div>
+  </div>
+
+  <script src="eventListener.js"></script>
 </body>
+
 </html>

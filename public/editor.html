@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/x-icon" href="Elements/favicon.ico" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>About | Schedify</title>
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+  <div id="navbar-container"></div>
+  <div id="login-modal-container"></div>
+  <div id="roomTopicAssignmentContainer"></div>
+  <section id="scheduleDisplaySection" style="margin-top: 2em;">
+    <h2>Generated Schedule</h2>
+    <table id="scheduleTable" border="1" style="border-collapse: collapse; width: 100%;"></table>
+  </section>
+  <script src="eventListener.js"></script>
+  <script>
+    fetch('navbar.html')
+      .then(response => response.text())
+      .then(data => {
+        document.getElementById('navbar-container').innerHTML = data;
+      })
+      .catch(error => console.error('Error loading navbar:', error));
+
+    fetch('loginModal.html')
+      .then(response => response.text())
+      .then(data => {
+        document.getElementById('login-modal-container').innerHTML = data;
+
+        const script = document.createElement('script');
+        script.src = 'eventListener.js';
+        script.onload = () => initLoginLogic(); 
+        document.body.appendChild(script);
+      })
+      .catch(error => console.error('Error loading login modal:', error));
+    // Load saved schedule
+    const savedScheduleHTML = localStorage.getItem("generatedScheduleHTML");
+    if (savedScheduleHTML) {
+      document.getElementById("scheduleTable").innerHTML = savedScheduleHTML;
+      localStorage.removeItem("generatedScheduleHTML");
+    }
+  </script>
+</body>
+
+</html>

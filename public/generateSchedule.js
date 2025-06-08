@@ -372,8 +372,46 @@ document.getElementById("scheduleTable").addEventListener("drop", e => {
   if (dropTarget && dropTarget.classList.contains("schedule-slot") && draggedEl) {
     draggedEl.style.display = "";
     dropTarget.appendChild(draggedEl);
+
+    // 🔄 Update scheduleData in localStorage after drag-and-drop
+    const updatedSchedule = [];
+    const tables = document.querySelectorAll(".daily-schedule-table");
+
+    tables.forEach(table => {
+      const date = table.previousElementSibling.textContent.replace("Schedule for ", "").trim();
+      const periods = Array.from(table.querySelectorAll("tbody > tr"));
+      
+      periods.forEach(row => {
+        const period = row.querySelector("td").textContent.trim();
+        const cells = row.querySelectorAll("td.schedule-slot");
+
+        cells.forEach(cell => {
+          const room = cell.getAttribute("data-room");
+
+          const studentDivs = cell.querySelectorAll(".student-entry");
+          studentDivs.forEach(div => {
+            const nameLine = div.querySelector("strong")?.textContent || "";
+            const projectLine = div.querySelector("em")?.textContent || "";
+            const topic = Object.entries(JSON.parse(localStorage.getItem("topicColors") || "{}"))
+              .find(([_, color]) => color === div.style.backgroundColor)?.[0] || "";
+
+            updatedSchedule.push({
+              name: nameLine,
+              topic: topic,
+              projectName: projectLine,
+              date: date,
+              period: period,
+              room: room
+            });
+          });
+        });
+      });
+    });
+
+    localStorage.setItem("scheduleData", JSON.stringify(updatedSchedule));
   }
 });
+
 
 function downloadCSVFromScheduleData() {
   const schedule = JSON.parse(localStorage.getItem("scheduleData")) || [];

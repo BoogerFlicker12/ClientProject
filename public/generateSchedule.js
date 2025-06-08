@@ -6,7 +6,18 @@ function getColorForTopic(topic, colorMap = {}) {
   return colorMap[topic];
 }
 
+// 1. Add new entry point to generate multiple schedules
 function generateSchedule(settings, studentData) {
+  const numberOfSchedules = settings.numberOfSchedules || 1;
+
+  for (let i = 0; i < numberOfSchedules; i++) {
+    generateSingleSchedule(settings, studentData, i + 1);
+  }
+}
+
+// 2. Refactor logic into generateSingleSchedule()
+function generateSingleSchedule(settings, studentData, scheduleIndex) {
+  console.log(`Generating Schedule #${scheduleIndex}`);
   console.log("Generating schedules with:", settings, "Student count:", studentData.length);
 
   const { numberOfDays, periods, rooms } = settings;
@@ -69,10 +80,11 @@ function generateSchedule(settings, studentData) {
     topicGroups[topic].push(student);
   }
 
-  console.log("Grouped topics and student counts:", Object.fromEntries(Object.entries(topicGroups).map(([k, v]) => [k, v.length])));
+  //console.log("Grouped topics and student counts:", Object.fromEntries(Object.entries(topicGroups).map(([k, v]) => [k, v.length]));
 
   if (!confirm("Do you want to manually assign rooms to topics? Click Cancel for automatic assignment.")) {
-    const topicList = Object.keys(topicGroups);
+    // 6. Slight Randomization for Variety
+    const topicList = Object.keys(topicGroups).sort(() => Math.random() - 0.5);
     const autoMap = {};
     rooms.forEach(r => (autoMap[r] = []));
     for (let i = 0; i < topicList.length; i++) {
@@ -80,16 +92,14 @@ function generateSchedule(settings, studentData) {
       autoMap[room].push(topicList[i]);
     }
     console.log("Auto-assigned room to topic mapping:", autoMap);
-    finalizeSchedule(rooms, topicGroups, autoMap, studentData, selectedSlots, periods, selectedDates);
+    finalizeSchedule(rooms, topicGroups, autoMap, studentData, selectedSlots, periods, selectedDates, scheduleIndex);
   } else {
     showRoomTopicAssignmentUI(rooms, topicGroups, selectedSlots.length, (userMap) => {
       console.log("Manual user room-topic map:", userMap);
-      finalizeSchedule(rooms, topicGroups, userMap, studentData, selectedSlots, periods, selectedDates);
+      finalizeSchedule(rooms, topicGroups, userMap, studentData, selectedSlots, periods, selectedDates, scheduleIndex);
     });
   }
 }
-
-
 
 function showRoomTopicAssignmentUI(rooms, topicGroups, slotCapacity, onConfirm) {
   const container = document.getElementById("roomTopicAssignmentContainer");
@@ -139,7 +149,7 @@ function showRoomTopicAssignmentUI(rooms, topicGroups, slotCapacity, onConfirm) 
   container.scrollIntoView({ behavior: "smooth" });
 }
 
-function finalizeSchedule(rooms, topicGroups, roomTopicMap, studentData, selectedSlots, periods, selectedDates) {
+function finalizeSchedule(rooms, topicGroups, roomTopicMap, studentData, selectedSlots, periods, selectedDates, scheduleIndex) {
   console.log("---- Finalizing Schedule ----");
   const roomAssignmentsMap = {};
   const roomAssignments = {};
@@ -153,7 +163,6 @@ function finalizeSchedule(rooms, topicGroups, roomTopicMap, studentData, selecte
     roomAssignments[room] = [];
   }
 
-  // Assign students to rooms by topic
   for (const [room, topics] of Object.entries(roomTopicMap)) {
     for (const topic of topics) {
       const students = topicGroups[topic] || [];
@@ -182,7 +191,6 @@ function finalizeSchedule(rooms, topicGroups, roomTopicMap, studentData, selecte
   console.log("Room assignments by room:", roomAssignments);
   console.log("Assigned counts:", Object.fromEntries(rooms.map(r => [r, roomAssignmentsMap[r].assignedCount])));
 
-  // Flatten schedule generation
   const finalSchedule = [];
   let roomIndex = 0;
 
@@ -208,12 +216,21 @@ function finalizeSchedule(rooms, topicGroups, roomTopicMap, studentData, selecte
   }
 
   console.log("✅ Final schedule generated with", finalSchedule.length, "entries");
-  displaySchedule(finalSchedule, periods);
+  displaySchedule(finalSchedule, periods, scheduleIndex);
 }
 
-function displaySchedule(schedule, periods) {
+// 3. Update displaySchedule() to label and isolate each schedule
+function displaySchedule(schedule, periods, scheduleIndex = 1) {
   const container = document.getElementById("scheduleTable");
-  container.innerHTML = "";
+  
+  const wrapper = document.createElement("div");
+  wrapper.classList.add("schedule-wrapper");
+  wrapper.style.borderTop = "3px solid #ccc";
+  wrapper.style.marginTop = "2em";
+
+  const title = document.createElement("h2");
+  title.textContent = `Schedule #${scheduleIndex}`;
+  wrapper.appendChild(title);
 
   const rooms = [...new Set(schedule.map(s => s.room))];
   const dates = [...new Set(schedule.map(s => s.date))];
@@ -224,7 +241,7 @@ function displaySchedule(schedule, periods) {
   for (const date of dates) {
     const subheading = document.createElement("h3");
     subheading.textContent = `Schedule for ${date}`;
-    container.appendChild(subheading);
+    wrapper.appendChild(subheading);
 
     const table = document.createElement("table");
     table.classList.add("daily-schedule-table");
@@ -279,11 +296,21 @@ function displaySchedule(schedule, periods) {
     }
 
     table.appendChild(tbody);
-    container.appendChild(table);
+    wrapper.appendChild(table);
   }
 
-  saveScheduleDataForEditor(schedule, periods, topicColors);
-  renderColorKey(topicColors);
+  localStorage.setItem(`scheduleData_${scheduleIndex}`, JSON.stringify(schedule));
+  localStorage.setItem("periods", JSON.stringify(periods));
+  localStorage.setItem(`topicColors_${scheduleIndex}`, JSON.stringify(topicColors));
+  
+  // 4. Render color key per schedule
+  renderColorKey(topicColors, wrapper);
+
+  // 5. Add CSV download for each schedule
+  const downloadBtn = createDownloadButton(schedule, scheduleIndex);
+  wrapper.appendChild(downloadBtn);
+
+  container.appendChild(wrapper);
 
   let messageEl = document.getElementById("scheduleGeneratedMessage");
   if (!messageEl) {
@@ -295,39 +322,16 @@ function displaySchedule(schedule, periods) {
     container.appendChild(messageEl);
   }
   messageEl.textContent = "Schedule Generated.";
-
-  let editorBtn = document.getElementById("goToEditorBtn");
-  if (!editorBtn) {
-    editorBtn = document.createElement("button");
-    editorBtn.id = "goToEditorBtn";
-    editorBtn.textContent = "Open Schedule Editor";
-    editorBtn.style.marginTop = "10px";
-    editorBtn.onclick = () => {
-      window.location.href = "editor.html";
-    };
-    messageEl.parentNode.appendChild(editorBtn);
-  }
 }
 
-
-
-function saveScheduleDataForEditor(schedule, periods, topicColors) {
-  localStorage.setItem("scheduleData", JSON.stringify(schedule));
-  localStorage.setItem("periods", JSON.stringify(periods));
-  localStorage.setItem("topicColors", JSON.stringify(topicColors));
-}
-
-function renderColorKey(topicColors) {
-  let keyContainer = document.getElementById("colorKey");
-  if (!keyContainer) {
-    keyContainer = document.createElement("div");
-    keyContainer.id = "colorKey";
-    keyContainer.style.marginTop = "1em";
-    keyContainer.style.display = "flex";
-    keyContainer.style.flexWrap = "wrap";
-    keyContainer.style.gap = "10px";
-    document.getElementById("scheduleTable").parentNode.appendChild(keyContainer);
-  }
+// 4. Updated renderColorKey()
+function renderColorKey(topicColors, parentEl) {
+  const keyContainer = document.createElement("div");
+  keyContainer.classList.add("color-key");
+  keyContainer.style.marginTop = "1em";
+  keyContainer.style.display = "flex";
+  keyContainer.style.flexWrap = "wrap";
+  keyContainer.style.gap = "10px";
 
   keyContainer.innerHTML = "<strong>Project Topic Colors:</strong><br/>";
   for (const [topic, color] of Object.entries(topicColors)) {
@@ -341,14 +345,62 @@ function renderColorKey(topicColors) {
     entry.textContent = topic || "No Topic";
     keyContainer.appendChild(entry);
   }
+
+  parentEl.appendChild(keyContainer);
+}
+
+// 5. Add CSV download for each schedule
+function createDownloadButton(schedule, scheduleIndex) {
+  const button = document.createElement("button");
+  button.textContent = `Download CSV for Schedule #${scheduleIndex}`;
+  button.style.marginTop = "1em";
+
+  button.onclick = () => {
+    // Get the current version from storage (which may have drag-and-drop updates)
+    const currentSchedule = JSON.parse(localStorage.getItem(`scheduleData_${scheduleIndex}`)) || schedule;
+    
+    const rows = [["Date", "Period", "Room", "Student Name", "Project Title", "Topic"]];
+    const grouped = {};
+
+    for (const entry of currentSchedule) {
+      const key = `${entry.date}|||${entry.period}|||${entry.room}`;
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push(entry);
+    }
+
+    for (const [key, entries] of Object.entries(grouped)) {
+      const [date, period, room] = key.split("|||");
+      for (let i = 0; i < 2; i++) {
+        const e = entries[i] || {};
+        rows.push([
+          date,
+          period,
+          room,
+          e.name || "",
+          e.projectName || "",
+          e.topic || ""
+        ]);
+      }
+    }
+
+    const csvContent = rows.map(r => r.map(v => `"${v}"`).join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `schedule_${scheduleIndex}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return button;
 }
 
 let draggedEl = null;
 
-
 function addDragAndDropEvents(el) {
   el.addEventListener("dragstart", (e) => {
-    draggedEl = el;  
+    draggedEl = el;
     el.classList.add("dragging");
     setTimeout(() => el.style.display = "none", 0);
   });
@@ -361,8 +413,9 @@ function addDragAndDropEvents(el) {
     }
   });
 }
+
 document.getElementById("scheduleTable").addEventListener("dragover", e => {
-  e.preventDefault(); 
+  e.preventDefault();
 });
 
 document.getElementById("scheduleTable").addEventListener("drop", e => {
@@ -370,29 +423,35 @@ document.getElementById("scheduleTable").addEventListener("drop", e => {
   const dropTarget = e.target.closest("td");
 
   if (dropTarget && dropTarget.classList.contains("schedule-slot") && draggedEl) {
+    // Get the schedule wrapper that contains this drop target
+    const scheduleWrapper = dropTarget.closest('.schedule-wrapper');
+    const scheduleIndex = scheduleWrapper ? 
+      parseInt(scheduleWrapper.querySelector('h2').textContent.replace('Schedule #', '')) : 
+      1;
+
     draggedEl.style.display = "";
     dropTarget.appendChild(draggedEl);
 
-    // 🔄 Update scheduleData in localStorage after drag-and-drop
     const updatedSchedule = [];
-    const tables = document.querySelectorAll(".daily-schedule-table");
+    const tables = scheduleWrapper.querySelectorAll(".daily-schedule-table");
 
     tables.forEach(table => {
       const date = table.previousElementSibling.textContent.replace("Schedule for ", "").trim();
       const periods = Array.from(table.querySelectorAll("tbody > tr"));
-      
+
       periods.forEach(row => {
         const period = row.querySelector("td").textContent.trim();
         const cells = row.querySelectorAll("td.schedule-slot");
 
         cells.forEach(cell => {
           const room = cell.getAttribute("data-room");
-
           const studentDivs = cell.querySelectorAll(".student-entry");
+
           studentDivs.forEach(div => {
             const nameLine = div.querySelector("strong")?.textContent || "";
             const projectLine = div.querySelector("em")?.textContent || "";
-            const topic = Object.entries(JSON.parse(localStorage.getItem("topicColors") || "{}"))
+            const topicColors = JSON.parse(localStorage.getItem(`topicColors_${scheduleIndex}`)) || {};
+            const topic = Object.entries(topicColors)
               .find(([_, color]) => color === div.style.backgroundColor)?.[0] || "";
 
             updatedSchedule.push({
@@ -408,10 +467,13 @@ document.getElementById("scheduleTable").addEventListener("drop", e => {
       });
     });
 
+    // Save to the correct schedule-specific storage key
+    localStorage.setItem(`scheduleData_${scheduleIndex}`, JSON.stringify(updatedSchedule));
+    
+    // Also update the global scheduleData for backward compatibility
     localStorage.setItem("scheduleData", JSON.stringify(updatedSchedule));
   }
 });
-
 
 function downloadCSVFromScheduleData() {
   const schedule = JSON.parse(localStorage.getItem("scheduleData")) || [];

@@ -1,7 +1,6 @@
 console.log("eventListener.js loaded");
 console.log("Logged in user on load:", localStorage.getItem("loggedInUser"));
 
-
 const settingsModal = document.getElementById("settingsModal");
 const errorDiv = document.getElementById('error');
 const table = document.getElementById('csvTable');
@@ -10,7 +9,8 @@ const resultSection = document.getElementById('result');
 let settings = {
   numberOfDays: 2,
   periods: [2, 3, 4, 5, 6],
-  rooms: ['A', 'B', 'C']
+  rooms: ['A', 'B', 'C'],
+  numberOfSchedules: 3
 };
 
 let studentData = null;
@@ -32,7 +32,6 @@ function initLoginLogic() {
   if (!loginBtn || !loginModal || !closeLoginBtn || !togglePassword || !usernameInput || !passwordInput || !submitLoginBtn)
     return;
 
-  
   loginBtn.addEventListener("click", () => {
     loginModal.style.display = "block";
   });
@@ -98,8 +97,6 @@ function initLoginLogic() {
   }
 }
 
-
-
 const REQUIRED_HEADERS = [
   'Email Address',
   'Last name',
@@ -109,7 +106,6 @@ const REQUIRED_HEADERS = [
   'Availability'
 ];
 
-// File Upload Logic
 document.getElementById('uploadForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const fileInput = document.getElementById('csvFile');
@@ -127,7 +123,7 @@ document.getElementById('uploadForm').addEventListener('submit', async (e) => {
 
   if (data.rows) {
     studentData = data.rows;
-    const headers = Object.keys(data.rows[0]);
+    const headers = Object.keys(data.rows[0]).map(h => h.trim());
     table.innerHTML = `
       <thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead>
       <tbody>
@@ -173,8 +169,6 @@ document.getElementById('uploadForm').addEventListener('submit', async (e) => {
   }
 });
 
-
-// Settings modal open/close
 document.getElementById("settingsBtn").addEventListener("click", () => {
   settingsModal.style.display = "block";
 });
@@ -191,13 +185,13 @@ window.onclick = function (event) {
   }
 };
 
-// Save settings
 document.getElementById("saveSettingsBtn").addEventListener("click", saveSettings);
 
 function saveSettings() {
   const numberOfDaysInput = parseInt(document.getElementById("numberOfDays").value.trim());
   const periodInput = document.getElementById("periodRange").value;
   const roomsInput = document.getElementById("roomsList").value;
+  const numberOfSchedulesInput = parseInt(document.getElementById("numberOfSchedules").value.trim());
 
   if (isNaN(numberOfDaysInput)) {
     settings.numberOfDays = 1;
@@ -209,10 +203,25 @@ function saveSettings() {
     const [start, end] = periodInput.split('-').map(p => parseInt(p.trim()));
     if (!isNaN(start) && !isNaN(end) && end >= start) {
       settings.periods = Array.from({ length: end - start + 1 }, (_, i) => start + i);
+    } else {
+      alert("Invalid period range. Please enter it like '2-6'.");
     }
   }
 
   settings.rooms = roomsInput.split(',').map(r => r.trim()).filter(r => r);
+
+  if (!isNaN(numberOfSchedulesInput) && numberOfSchedulesInput > 0 && numberOfSchedulesInput <= 100) {
+    settings.numberOfSchedules = numberOfSchedulesInput;
+  } else {
+    alert("Invalid number of schedules. Please enter a number between 1 and 100.");
+    settings.numberOfSchedules = 1;
+  }
+
+  const status = document.createElement('div');
+  status.textContent = "Settings saved!";
+  status.style.color = "green";
+  settingsModal.querySelector('.modal-content').appendChild(status);
+  setTimeout(() => status.remove(), 2000);
 
   console.log("Saved Settings:", settings);
   settingsModal.style.display = "none";
@@ -225,6 +234,7 @@ function parseAvailability(availabilityString) {
   const entries = [];
 
   for (let i = 0; i < parts.length; i += 3) {
+    if (parts.length < 3 || !parts[i] || !parts[i + 2]) continue;
     const pdMatch = parts[i]?.match(/PD\s*(\d+)/i);
     const period = pdMatch ? parseInt(pdMatch[1]) : null;
     const date = parts[i + 2] || null;
@@ -242,10 +252,10 @@ document.getElementById("generateBtn").addEventListener("click", () => {
     alert("Please upload a CSV file first.");
     return;
   }
- 
+
   table.innerHTML = "";
   errorDiv.textContent = "";
-  resultSection.style.display = "none"; 
+  resultSection.style.display = "none";
 
   if (typeof generateSchedule === "function") {
     for (const student of studentData) {
@@ -257,6 +267,3 @@ document.getElementById("generateBtn").addEventListener("click", () => {
     alert("generateSchedule function is not defined.");
   }
 });
-
-
-

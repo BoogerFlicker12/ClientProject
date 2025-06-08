@@ -8,7 +8,7 @@ const table = document.getElementById('csvTable');
 const resultSection = document.getElementById('result');
 
 let settings = {
-  scheduleCount: 2,
+  numberOfDays: 2,
   periods: [2, 3, 4, 5, 6],
   rooms: ['A', 'B', 'C']
 };
@@ -195,14 +195,14 @@ window.onclick = function (event) {
 document.getElementById("saveSettingsBtn").addEventListener("click", saveSettings);
 
 function saveSettings() {
-  const scheduleCountInput = parseInt(document.getElementById("scheduleCount").value.trim());
+  const numberOfDaysInput = parseInt(document.getElementById("numberOfDays").value.trim());
   const periodInput = document.getElementById("periodRange").value;
   const roomsInput = document.getElementById("roomsList").value;
 
-  if (isNaN(scheduleCountInput)) {
-    settings.scheduleCount = 1;
+  if (isNaN(numberOfDaysInput)) {
+    settings.numberOfDays = 1;
   } else {
-    settings.scheduleCount = scheduleCountInput;
+    settings.numberOfDays = numberOfDaysInput;
   }
 
   if (periodInput.includes('-')) {

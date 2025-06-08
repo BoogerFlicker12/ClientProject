@@ -1,10 +1,16 @@
-// Modified generateSchedule.js with period capacity logic and schedule table rendering
+function getColorForTopic(topic, colorMap = {}) {
+  if (!colorMap[topic]) {
+    const hue = Object.keys(colorMap).length * 137.5 % 360;
+    colorMap[topic] = `hsl(${hue}, 70%, 85%)`;
+  }
+  return colorMap[topic];
+}
 
 function generateSchedule(settings, studentData) {
-  console.log("Generating schedules with", settings, studentData);
-  const { scheduleCount, periods, rooms } = settings;
+  console.log("Generating schedules with:", settings, "Student count:", studentData.length);
 
-  if (!scheduleCount || !periods || !rooms || !studentData) {
+  const { numberOfDays, periods, rooms } = settings;
+  if (!numberOfDays || !periods || !rooms || !studentData) {
     alert("Missing input data. Please check settings and student list.");
     return;
   }
@@ -22,18 +28,22 @@ function generateSchedule(settings, studentData) {
 
   const totalStudents = studentData.length;
   const commonDates = Object.entries(dateFrequency)
-    .filter(([date, count]) => count === totalStudents)
+    .filter(([date, count]) => count >= totalStudents * 0.9)
     .map(([date]) => date);
 
   let selectedDates = [];
-  if (commonDates.length >= scheduleCount) {
-    selectedDates = commonDates.slice(0, scheduleCount);
+  if (commonDates.length >= numberOfDays) {
+    selectedDates = commonDates.slice(0, numberOfDays);
   } else {
     selectedDates = Object.entries(dateFrequency)
       .sort((a, b) => b[1] - a[1])
-      .slice(0, scheduleCount)
+      .slice(0, numberOfDays)
       .map(([date]) => date);
   }
+
+  console.log("Selected dates for scheduling:", selectedDates);
+  console.log("All date frequencies:", dateFrequency);
+  console.log("Common (90%+) available dates:", commonDates);
 
   const selectedSlots = Object.entries(datePeriodFrequency)
     .map(([key, count]) => {
@@ -42,28 +52,44 @@ function generateSchedule(settings, studentData) {
     })
     .filter(({ date }) => selectedDates.includes(date));
 
+  console.log("Filtered date+period slots for selected dates:", selectedSlots);
+
+  const totalAvailableSlots = periods.length * rooms.length * numberOfDays * 2;
+  console.log("Total available slots:", totalAvailableSlots, "| Total students:", totalStudents);
+
+  if (totalStudents > totalAvailableSlots) {
+    alert(`Not enough room capacity! ${totalStudents} students vs ${totalAvailableSlots} slots.`);
+    return;
+  }
+
   const topicGroups = {};
   for (const student of studentData) {
-    const topic = (student["Project topic"] || "").toLowerCase();
+    const topic = (student["Project topic"] || "No Topic").toLowerCase();
     if (!topicGroups[topic]) topicGroups[topic] = [];
     topicGroups[topic].push(student);
   }
 
-  if (!confirm("Do you want to manually assign rooms to topics? Click 'Cancel' for automatic assignment.")) {
+  console.log("Grouped topics and student counts:", Object.fromEntries(Object.entries(topicGroups).map(([k, v]) => [k, v.length])));
+
+  if (!confirm("Do you want to manually assign rooms to topics? Click Cancel for automatic assignment.")) {
     const topicList = Object.keys(topicGroups);
-    const autoAssignment = {};
-    rooms.forEach(r => (autoAssignment[r] = []));
+    const autoMap = {};
+    rooms.forEach(r => (autoMap[r] = []));
     for (let i = 0; i < topicList.length; i++) {
       const room = rooms[i % rooms.length];
-      autoAssignment[room].push(topicList[i]);
+      autoMap[room].push(topicList[i]);
     }
-    finalizeSchedule(rooms, topicGroups, autoAssignment, studentData, selectedSlots, periods);
+    console.log("Auto-assigned room to topic mapping:", autoMap);
+    finalizeSchedule(rooms, topicGroups, autoMap, studentData, selectedSlots, periods, selectedDates);
   } else {
-    showRoomTopicAssignmentUI(rooms, topicGroups, selectedSlots.length, (userRoomTopicMap) => {
-      finalizeSchedule(rooms, topicGroups, userRoomTopicMap, studentData, selectedSlots, periods);
+    showRoomTopicAssignmentUI(rooms, topicGroups, selectedSlots.length, (userMap) => {
+      console.log("Manual user room-topic map:", userMap);
+      finalizeSchedule(rooms, topicGroups, userMap, studentData, selectedSlots, periods, selectedDates);
     });
   }
 }
+
+
 
 function showRoomTopicAssignmentUI(rooms, topicGroups, slotCapacity, onConfirm) {
   const container = document.getElementById("roomTopicAssignmentContainer");
@@ -113,100 +139,152 @@ function showRoomTopicAssignmentUI(rooms, topicGroups, slotCapacity, onConfirm) 
   container.scrollIntoView({ behavior: "smooth" });
 }
 
-function finalizeSchedule(rooms, topicGroups, userRoomTopicMap, studentData, selectedSlots, periods) {
-  const slotCapacity = periods.length * 2;
+function finalizeSchedule(rooms, topicGroups, roomTopicMap, studentData, selectedSlots, periods, selectedDates) {
+  console.log("---- Finalizing Schedule ----");
   const roomAssignmentsMap = {};
-  const roomTopicsMap = {};
+  const roomAssignments = {};
+
   for (const room of rooms) {
     roomAssignmentsMap[room] = {
-      capacity: slotCapacity,
+      capacity: periods.length * selectedDates.length * 2,
       assignedCount: 0,
       students: []
     };
-    roomTopicsMap[room] = new Set(userRoomTopicMap[room] || []);
+    roomAssignments[room] = [];
   }
 
-  for (const [room, topics] of Object.entries(userRoomTopicMap)) {
+  // Assign students to rooms by topic
+  for (const [room, topics] of Object.entries(roomTopicMap)) {
     for (const topic of topics) {
-      const studentsForTopic = topicGroups[topic];
-      for (const student of studentsForTopic) {
+      const students = topicGroups[topic] || [];
+      for (const student of students) {
         if (roomAssignmentsMap[room].assignedCount < roomAssignmentsMap[room].capacity) {
-          roomAssignmentsMap[room].students.push(student);
+          roomAssignments[room].push(student);
           roomAssignmentsMap[room].assignedCount++;
         } else {
-          for (const altRoom of rooms) {
-            if (altRoom !== room && roomAssignmentsMap[altRoom].assignedCount < roomAssignmentsMap[altRoom].capacity) {
-              roomAssignmentsMap[altRoom].students.push(student);
-              roomAssignmentsMap[altRoom].assignedCount++;
+          let placed = false;
+          for (const alt of rooms) {
+            if (roomAssignmentsMap[alt].assignedCount < roomAssignmentsMap[alt].capacity) {
+              roomAssignments[alt].push(student);
+              roomAssignmentsMap[alt].assignedCount++;
+              placed = true;
               break;
             }
+          }
+          if (!placed) {
+            console.warn("❌ Student couldn't be placed:", student["First name"], student["Last name"]);
           }
         }
       }
     }
   }
 
-  const roomAssignments = rooms.map(r => roomAssignmentsMap[r].students);
-  const finalSchedule = [];
-  let groupIndex = 0;
+  console.log("Room assignments by room:", roomAssignments);
+  console.log("Assigned counts:", Object.fromEntries(rooms.map(r => [r, roomAssignmentsMap[r].assignedCount])));
 
-  for (const { date } of selectedSlots) {
+  // Flatten schedule generation
+  const finalSchedule = [];
+  let roomIndex = 0;
+
+  for (const date of selectedDates) {
     for (const period of periods) {
       for (const room of rooms) {
-        const group = roomAssignments[groupIndex % roomAssignments.length];
+        const group = roomAssignments[room];
         const pair = group.splice(0, 2);
         for (const student of pair) {
+          if (!student) continue;
           finalSchedule.push({
             name: `${student["First name"]} ${student["Last name"]}`,
-            topic: student["Project topic"] || "",
+            topic: student["Project topic"] || "No Topic",
             projectName: student["Project name"] || "",
             date,
             period,
             room
           });
         }
-        groupIndex++;
+        roomIndex++;
       }
     }
   }
 
+  console.log("✅ Final schedule generated with", finalSchedule.length, "entries");
   displaySchedule(finalSchedule, periods);
 }
 
 function displaySchedule(schedule, periods) {
-  const table = document.getElementById("scheduleTable");
-  table.innerHTML = "";
+  const container = document.getElementById("scheduleTable");
+  container.innerHTML = "";
 
   const rooms = [...new Set(schedule.map(s => s.room))];
   const dates = [...new Set(schedule.map(s => s.date))];
+  const topicColors = {};
 
-  const headerRow = document.createElement("tr");
-  headerRow.innerHTML = `<th>Period</th>` + dates.flatMap(d => rooms.map(r => `<th>${d} - ${r}</th>`)).join("");
-  const thead = document.createElement("thead");
-  thead.appendChild(headerRow);
-  table.appendChild(thead);
+  console.log("DATES IN SCHEDULE:", dates);
 
-  const tbody = document.createElement("tbody");
-  for (const period of periods) {
-    const row = document.createElement("tr");
-    row.innerHTML = `<td>${period}</td>`;
-    for (const date of dates) {
+  for (const date of dates) {
+    const subheading = document.createElement("h3");
+    subheading.textContent = `Schedule for ${date}`;
+    container.appendChild(subheading);
+
+    const table = document.createElement("table");
+    table.classList.add("daily-schedule-table");
+    table.style.marginBottom = "2em";
+
+    const thead = document.createElement("thead");
+    const headerRow = document.createElement("tr");
+    const headerCells = [`<th>Period</th>`];
+    for (const room of rooms) {
+      headerCells.push(`<th>${room}</th>`);
+    }
+    headerRow.innerHTML = headerCells.join("");
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+
+    const tbody = document.createElement("tbody");
+
+    for (const period of periods) {
+      const row = document.createElement("tr");
+      row.innerHTML = `<td>${period}</td>`;
+
       for (const room of rooms) {
         const students = schedule.filter(s => s.date === date && s.room === room && s.period === period);
-        const content = students.map(s => `${s.name}<br/><em>${s.projectName}</em>`).join("<hr/>") || "";
         const cell = document.createElement("td");
-        cell.innerHTML = content;
+        cell.classList.add("schedule-slot");
+        cell.setAttribute("data-period", period);
+        cell.setAttribute("data-date", date);
+        cell.setAttribute("data-room", room);
+        cell.style.minWidth = "180px";
+        cell.style.minHeight = "60px";
+
+        for (const student of students) {
+          const topicColor = getColorForTopic(student.topic, topicColors);
+          const slot = document.createElement("div");
+          slot.className = "student-entry";
+          slot.draggable = true;
+          slot.style.backgroundColor = topicColor;
+          slot.style.border = "1px solid #aaa";
+          slot.style.margin = "4px 0";
+          slot.style.padding = "4px";
+          slot.style.borderRadius = "4px";
+
+          slot.innerHTML = `<strong>${student.name}</strong><br/><em>${student.projectName}</em>`;
+          addDragAndDropEvents(slot);
+          cell.appendChild(slot);
+        }
+
         row.appendChild(cell);
       }
+
+      tbody.appendChild(row);
     }
-    tbody.appendChild(row);
+
+    table.appendChild(tbody);
+    container.appendChild(table);
   }
-  table.appendChild(tbody);
 
-  // Save generated schedule HTML to localStorage for editor.html
-  localStorage.setItem("generatedScheduleHTML", table.innerHTML);
+  saveScheduleDataForEditor(schedule, periods, topicColors);
+  renderColorKey(topicColors);
 
-  // Show a message below the table
   let messageEl = document.getElementById("scheduleGeneratedMessage");
   if (!messageEl) {
     messageEl = document.createElement("p");
@@ -214,8 +292,122 @@ function displaySchedule(schedule, periods) {
     messageEl.style.marginTop = "1em";
     messageEl.style.fontWeight = "600";
     messageEl.style.color = "green";
-    table.parentNode.appendChild(messageEl);
+    container.appendChild(messageEl);
   }
-  messageEl.textContent = "Schedule Generated, go to editor.";
+  messageEl.textContent = "Schedule Generated.";
+
+  let editorBtn = document.getElementById("goToEditorBtn");
+  if (!editorBtn) {
+    editorBtn = document.createElement("button");
+    editorBtn.id = "goToEditorBtn";
+    editorBtn.textContent = "Open Schedule Editor";
+    editorBtn.style.marginTop = "10px";
+    editorBtn.onclick = () => {
+      window.location.href = "editor.html";
+    };
+    messageEl.parentNode.appendChild(editorBtn);
+  }
 }
 
+
+
+function saveScheduleDataForEditor(schedule, periods, topicColors) {
+  localStorage.setItem("scheduleData", JSON.stringify(schedule));
+  localStorage.setItem("periods", JSON.stringify(periods));
+  localStorage.setItem("topicColors", JSON.stringify(topicColors));
+}
+
+function renderColorKey(topicColors) {
+  let keyContainer = document.getElementById("colorKey");
+  if (!keyContainer) {
+    keyContainer = document.createElement("div");
+    keyContainer.id = "colorKey";
+    keyContainer.style.marginTop = "1em";
+    keyContainer.style.display = "flex";
+    keyContainer.style.flexWrap = "wrap";
+    keyContainer.style.gap = "10px";
+    document.getElementById("scheduleTable").parentNode.appendChild(keyContainer);
+  }
+
+  keyContainer.innerHTML = "<strong>Project Topic Colors:</strong><br/>";
+  for (const [topic, color] of Object.entries(topicColors)) {
+    const entry = document.createElement("div");
+    entry.style.backgroundColor = color;
+    entry.style.padding = "5px 10px";
+    entry.style.border = "1px solid #aaa";
+    entry.style.borderRadius = "4px";
+    entry.style.fontSize = "0.9em";
+    entry.style.whiteSpace = "nowrap";
+    entry.textContent = topic || "No Topic";
+    keyContainer.appendChild(entry);
+  }
+}
+
+let draggedEl = null;
+
+
+function addDragAndDropEvents(el) {
+  el.addEventListener("dragstart", (e) => {
+    draggedEl = el;  
+    el.classList.add("dragging");
+    setTimeout(() => el.style.display = "none", 0);
+  });
+
+  el.addEventListener("dragend", () => {
+    if (draggedEl) {
+      draggedEl.classList.remove("dragging");
+      draggedEl.style.display = "";
+      draggedEl = null;
+    }
+  });
+}
+document.getElementById("scheduleTable").addEventListener("dragover", e => {
+  e.preventDefault(); 
+});
+
+document.getElementById("scheduleTable").addEventListener("drop", e => {
+  e.preventDefault();
+  const dropTarget = e.target.closest("td");
+
+  if (dropTarget && dropTarget.classList.contains("schedule-slot") && draggedEl) {
+    draggedEl.style.display = "";
+    dropTarget.appendChild(draggedEl);
+  }
+});
+
+function downloadCSVFromScheduleData() {
+  const schedule = JSON.parse(localStorage.getItem("scheduleData")) || [];
+  const grouped = {};
+  for (const entry of schedule) {
+    const key = `${entry.date}|||${entry.period}|||${entry.room}`;
+    if (!grouped[key]) grouped[key] = [];
+    grouped[key].push(entry);
+  }
+
+  const rows = [["Date", "Period", "Room", "Student Name", "Project Title", "Topic"]];
+  for (const [key, entries] of Object.entries(grouped)) {
+    const [date, period, room] = key.split("|||");
+    for (let i = 0; i < 2; i++) {
+      const e = entries[i] || {};
+      rows.push([
+        date,
+        period,
+        room,
+        e.name || "",
+        e.projectName || "",
+        e.topic || ""
+      ]);
+    }
+  }
+
+  const csvContent = rows.map(r => r.map(v => `"${v}"`).join(",")).join("\n");
+  const blob = new Blob([csvContent], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "schedule.csv";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+document.getElementById("downloadCSVBtn").addEventListener("click", downloadCSVFromScheduleData);

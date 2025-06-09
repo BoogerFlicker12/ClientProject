@@ -48,7 +48,7 @@
 body {
   font-family: 'CanvaSans', 'Inter', sans-serif;
   background-color: #fff5f5;
-  color: #4a0000;
+  color: #da3a32;
   margin: 0;
   padding: 20px;
 }
@@ -66,7 +66,7 @@ main {
 
 /* Headings */
 h1, h2 {
-  color: #b30000;
+  color: #da3a32;
   text-align: center;
   opacity: 0;
   animation: fadeInUp 0.6s ease-out forwards;
@@ -86,7 +86,7 @@ h3 {
   animation: slideDownFade 0.6s ease-out forwards;
   display: flex;
   align-items: center;
-  background-color: rgb(248, 141, 141);
+  background-color: #ffe5e5;
   padding: 0 15px;
   height: 10vw;
   max-height: 80px;
@@ -99,25 +99,28 @@ h3 {
   padding: 0;
   margin: 0;
   display: flex;
-  gap: 10px;
+  gap: 15px; 
   flex-grow: 1;
   justify-content: flex-start;
 }
 
+.navbar ul li {
+  margin: 0;
+  padding: 0;
+}
+
 .navbar a {
   font-family: inherit;
-  font-weight: bold;
-  color: #c4242c;
+  color: #da3a32;
   text-decoration: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  aspect-ratio: 164 / 66;
   height: 10vw;
   max-height: 80px;
   font-size: clamp(16px, 2vw, 24px);
   background-color: inherit;
-  padding: 0 15px;
+  padding: 0 10px;
   transition: color 0.2s ease, transform 0.2s ease;
 }
 

@@ -41,7 +41,6 @@ const REQUIRED_HEADERS = [
   'Availability'
 ];
 
-
 function normalize(header) {
   return header.trim().toLowerCase();
 }
@@ -77,7 +76,6 @@ function filterAndValidateRows(rows) {
     if (isValid) {
       validRows.push(filtered);
     } else {
-      // Build full identifier object for all REQUIRED_HEADERS with values or empty strings
       const identifier = {};
       for (const h of REQUIRED_HEADERS) {
         const key = Object.keys(row).find(k => normalize(k) === normalize(h));
@@ -95,8 +93,6 @@ function filterAndValidateRows(rows) {
   return { validRows, invalidRows };
 }
 
-
-
 app.post('/api/upload', upload.single('file'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded or invalid file type.' });
 
@@ -106,25 +102,30 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
     const results = [];
     let headersChecked = false;
     let missingHeaders = [];
+    let errorSent = false;
 
-    fs.createReadStream(req.file.path)
+    const stream = fs.createReadStream(req.file.path)
       .pipe(csv())
       .on('headers', function(headers) {
         missingHeaders = validateHeaders(headers);
         headersChecked = true;
         if (missingHeaders.length > 0) {
+          errorSent = true;
+          // Stop reading further, delete file, and send error
           this.destroy();
-        }
-      })
-      .on('data', (data) => results.push(data))
-      .on('end', () => {
-        fs.unlinkSync(req.file.path);
-        if (missingHeaders.length > 0) {
+          fs.unlinkSync(req.file.path);
           return res.status(400).json({
             error: 'File contains insufficient information.',
             missingHeaders
           });
         }
+      })
+      .on('data', (data) => {
+        if (!errorSent) results.push(data);
+      })
+      .on('end', () => {
+        if (errorSent) return;
+        fs.unlinkSync(req.file.path);
         const { validRows, invalidRows } = filterAndValidateRows(results);
         if (invalidRows.length > 0) {
           return res.status(400).json({
@@ -135,7 +136,10 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
         res.json({ rows: validRows });
       })
       .on('error', (err) => {
-        res.status(500).json({ error: 'Failed to parse CSV file.', details: err.message });
+        if (!errorSent) {
+          fs.unlinkSync(req.file.path);
+          res.status(500).json({ error: 'Failed to parse CSV file.', details: err.message });
+        }
       });
 
   } else if (ext === '.xlsx' || ext === '.xls') {
@@ -167,6 +171,7 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
       }
       res.json({ rows: validRows });
     } catch (err) {
+      fs.unlinkSync(req.file.path);
       res.status(500).json({ error: 'Failed to parse Excel file.', details: err.message });
     }
 

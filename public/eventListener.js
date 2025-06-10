@@ -15,7 +15,7 @@ let settings = {
 
 let studentData = null;
 
-/*function initLoginLogic() {
+function initLoginLogic() {
   const validUsers = [
     { username: "alice", password: "password123" },
     { username: "bob", password: "secure456" }
@@ -88,15 +88,16 @@ let studentData = null;
     loginBtn.style.display = "inline-block";
     document.getElementById("welcomeMsg").style.display = "none";
   }
-
+/*
   const savedUser = localStorage.getItem("loggedInUser");
   if (savedUser) {
     showWelcome(savedUser);
   } else {
     showLogin();
-  }
+  } */
+  showLogin();
 }
-*/
+
 const REQUIRED_HEADERS = [
   'Email Address',
   'Last name',
@@ -176,15 +177,8 @@ document.getElementById("closeSettingsBtn").addEventListener("click", () => {
   settingsModal.style.display = "none";
 });
 
-/*window.onclick = function (event) {
-  if (loginModal && event.target === loginModal) {
-    closeLogin();
-  }
-  if (settingsModal && event.target === settingsModal) {
-    settingsModal.style.display = "none";
-  }
-};
-*/
+
+
 document.getElementById("saveSettingsBtn").addEventListener("click", saveSettings);
 
 function saveSettings() {

@@ -12,7 +12,7 @@
 
 <body>
   <div id="navbar-container"></div>
-  <!--<div id="login-modal-container"></div> -->
+  <div id="login-modal-container"></div> 
   
 
   <main>
@@ -58,7 +58,6 @@
     <table id="scheduleTable" border="1" style="border-collapse: collapse; width: 100%;"></table>
   </section>
   <script src="generateSchedule.js"></script>
-  <script src="eventListener.js"></script>
   <script>
     fetch('navbar.html')
       .then(response => response.text())
@@ -67,14 +66,15 @@
       })
       .catch(error => console.error('Error loading navbar:', error));
 
-    /*fetch('loginModal.html')
+    fetch('loginModal.html')
       .then(response => response.text())
       .then(data => {
         document.getElementById('login-modal-container').innerHTML = data;
         initLoginLogic(); 
       })
-      .catch(error => console.error('Error loading login modal:', error)); */
+      .catch(error => console.error('Error loading login modal:', error)); 
   </script>
+  <script src="eventListener.js"></script>
 </body>
 
 </html>

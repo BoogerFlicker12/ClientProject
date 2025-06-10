@@ -15,10 +15,19 @@ function generateSchedule(settings, studentData) {
   }
 }
 
-// 2. Refactor logic into generateSingleSchedule()
 function generateSingleSchedule(settings, studentData, scheduleIndex) {
   console.log(`Generating Schedule #${scheduleIndex}`);
   console.log("Generating schedules with:", settings, "Student count:", studentData.length);
+
+  // Log key student info to debug availability issues
+  console.log("Listing all students and key fields:");
+  studentData.forEach(student => {
+    console.log({
+      name: student["Student name"] || student.name || "No Name",
+      availabilityParsed: student.availabilityParsed,
+      projectTopic: student["Project topic"] || "No Topic"
+    });
+  });
 
   const { numberOfDays, periods, rooms } = settings;
   if (!numberOfDays || !periods || !rooms || !studentData) {
@@ -80,10 +89,7 @@ function generateSingleSchedule(settings, studentData, scheduleIndex) {
     topicGroups[topic].push(student);
   }
 
-  //console.log("Grouped topics and student counts:", Object.fromEntries(Object.entries(topicGroups).map(([k, v]) => [k, v.length]));
-
   if (!confirm("Do you want to manually assign rooms to topics? Click Cancel for automatic assignment.")) {
-    // 6. Slight Randomization for Variety
     const topicList = Object.keys(topicGroups).sort(() => Math.random() - 0.5);
     const autoMap = {};
     rooms.forEach(r => (autoMap[r] = []));
@@ -100,6 +106,7 @@ function generateSingleSchedule(settings, studentData, scheduleIndex) {
     });
   }
 }
+
 
 function showRoomTopicAssignmentUI(rooms, topicGroups, slotCapacity, onConfirm) {
   const container = document.getElementById("roomTopicAssignmentContainer");
@@ -149,80 +156,175 @@ function showRoomTopicAssignmentUI(rooms, topicGroups, slotCapacity, onConfirm) 
   container.scrollIntoView({ behavior: "smooth" });
 }
 
-function finalizeSchedule(rooms, topicGroups, roomTopicMap, studentData, selectedSlots, periods, selectedDates, scheduleIndex) {
-  console.log("---- Finalizing Schedule ----");
-  const roomAssignmentsMap = {};
-  const roomAssignments = {};
+function normalizeDate(dateString) {
+  const d = new Date(dateString);
+  if (isNaN(d)) return dateString; // fallback if invalid date
+  return d.toISOString().slice(0, 10); // "YYYY-MM-DD"
+}
 
+function finalizeSchedule(rooms, topicGroups, roomTopicMap, studentData, selectedSlots, periods, selectedDates, scheduleIndex) {
+  console.log("---- Finalizing Schedule with Availability Awareness ----");
+
+  const roomAssignments = {};
+  const studentAssignments = new Map();
+
+  // Initialize room assignments
   for (const room of rooms) {
-    roomAssignmentsMap[room] = {
-      capacity: periods.length * selectedDates.length * 2,
-      assignedCount: 0,
-      students: []
-    };
     roomAssignments[room] = [];
+  }
+
+  // Create all possible slots
+  const allSlots = [];
+  for (const date of selectedDates) {
+    for (const period of periods) {
+      allSlots.push({ date, period });
+    }
+  }
+
+  function findBestSlot(student, room) {
+    const sameTopicStudents = topicGroups[student["Project topic"].toLowerCase()] || [];
+
+    for (const slot of allSlots) {
+      // Normalize dates before comparing
+      const isAvailable = student.availabilityParsed.some(avail =>
+        normalizeDate(avail.date) === normalizeDate(slot.date) && avail.period === slot.period
+      );
+      if (!isAvailable) continue;
+
+      const assignmentsInSlot = roomAssignments[room].filter(a =>
+        normalizeDate(a.date) === normalizeDate(slot.date) && a.period === slot.period
+      );
+      if (assignmentsInSlot.length >= 2) continue;
+
+      const hasSameTopic = assignmentsInSlot.some(a =>
+        sameTopicStudents.some(s =>
+          s["First name"] === a.student["First name"] &&
+          s["Last name"] === a.student["Last name"]
+        )
+      );
+
+      if (hasSameTopic || assignmentsInSlot.length === 0) {
+        return slot;
+      }
+    }
+
+    // Second pass: any slot with availability and space
+    for (const slot of allSlots) {
+      const isAvailable = student.availabilityParsed.some(avail =>
+        normalizeDate(avail.date) === normalizeDate(slot.date) && avail.period === slot.period
+      );
+      if (!isAvailable) continue;
+
+      const assignmentsInSlot = roomAssignments[room].filter(a =>
+        normalizeDate(a.date) === normalizeDate(slot.date) && a.period === slot.period
+      );
+      if (assignmentsInSlot.length < 2) {
+        return slot;
+      }
+    }
+
+    return null;
   }
 
   for (const [room, topics] of Object.entries(roomTopicMap)) {
     for (const topic of topics) {
       const students = topicGroups[topic] || [];
       for (const student of students) {
-        if (roomAssignmentsMap[room].assignedCount < roomAssignmentsMap[room].capacity) {
-          roomAssignments[room].push(student);
-          roomAssignmentsMap[room].assignedCount++;
+        let assigned = false;
+
+        console.log(`Trying to assign student: ${student["First name"]} ${student["Last name"]}`);
+        console.log("Availability parsed dates:", student.availabilityParsed.map(a => a.date));
+
+        const slot = findBestSlot(student, room);
+
+        if (slot) {
+          console.log(`Assigned to room ${room} on ${slot.date} period ${slot.period}`);
+          roomAssignments[room].push({
+            student,
+            date: slot.date,
+            period: slot.period
+          });
+          studentAssignments.set(`${student["First name"]} ${student["Last name"]}`, {
+            room,
+            date: slot.date,
+            period: slot.period
+          });
+          assigned = true;
         } else {
-          let placed = false;
-          for (const alt of rooms) {
-            if (roomAssignmentsMap[alt].assignedCount < roomAssignmentsMap[alt].capacity) {
-              roomAssignments[alt].push(student);
-              roomAssignmentsMap[alt].assignedCount++;
-              placed = true;
+          for (const altRoom of rooms) {
+            if (altRoom === room) continue;
+            const altSlot = findBestSlot(student, altRoom);
+            if (altSlot) {
+              console.log(`Assigned to alternative room ${altRoom} on ${altSlot.date} period ${altSlot.period}`);
+              roomAssignments[altRoom].push({
+                student,
+                date: altSlot.date,
+                period: altSlot.period
+              });
+              studentAssignments.set(`${student["First name"]} ${student["Last name"]}`, {
+                room: altRoom,
+                date: altSlot.date,
+                period: altSlot.period
+              });
+              assigned = true;
               break;
             }
           }
-          if (!placed) {
-            console.warn("❌ Student couldn't be placed:", student["First name"], student["Last name"]);
+        }
+
+        if (!assigned) {
+          console.error(`Force placing student ${student["First name"]} ${student["Last name"]} without availability match!`);
+
+          for (const slot of allSlots) {
+            const assignmentsInSlot = roomAssignments[room].filter(a =>
+              normalizeDate(a.date) === normalizeDate(slot.date) && a.period === slot.period
+            );
+            if (assignmentsInSlot.length < 2) {
+              console.log(`Force placed in room ${room} on ${slot.date} period ${slot.period}`);
+              roomAssignments[room].push({
+                student,
+                date: slot.date,
+                period: slot.period
+              });
+              assigned = true;
+              break;
+            }
+          }
+
+          if (!assigned) {
+            console.error(`Could not place student ${student["First name"]} ${student["Last name"]} at all.`);
           }
         }
       }
     }
   }
 
-  console.log("Room assignments by room:", roomAssignments);
-  console.log("Assigned counts:", Object.fromEntries(rooms.map(r => [r, roomAssignmentsMap[r].assignedCount])));
-
+  // Convert to final schedule format
   const finalSchedule = [];
-  let roomIndex = 0;
-
-  for (const date of selectedDates) {
-    for (const period of periods) {
-      for (const room of rooms) {
-        const group = roomAssignments[room];
-        const pair = group.splice(0, 2);
-        for (const student of pair) {
-          if (!student) continue;
-          finalSchedule.push({
-            name: `${student["First name"]} ${student["Last name"]}`,
-            topic: student["Project topic"] || "No Topic",
-            projectName: student["Project name"] || "",
-            date,
-            period,
-            room
-          });
-        }
-        roomIndex++;
-      }
+  for (const [room, assignments] of Object.entries(roomAssignments)) {
+    for (const assignment of assignments) {
+      finalSchedule.push({
+        name: `${assignment.student["First name"]} ${assignment.student["Last name"]}`,
+        topic: assignment.student["Project topic"] || "No Topic",
+        projectName: assignment.student["Project name"] || "",
+        date: assignment.date,
+        period: assignment.period,
+        room
+      });
     }
   }
 
   console.log("✅ Final schedule generated with", finalSchedule.length, "entries");
-  displaySchedule(finalSchedule, periods, scheduleIndex);
+
+  // Display the schedule without conflicts
+  displaySchedule(finalSchedule, periods, scheduleIndex); 
 }
 
-// 3. Update displaySchedule() to label and isolate each schedule
+
+
 function displaySchedule(schedule, periods, scheduleIndex = 1) {
   const container = document.getElementById("scheduleTable");
-  
+
   const wrapper = document.createElement("div");
   wrapper.classList.add("schedule-wrapper");
   wrapper.style.borderTop = "3px solid #ccc";
@@ -302,7 +404,7 @@ function displaySchedule(schedule, periods, scheduleIndex = 1) {
   localStorage.setItem(`scheduleData_${scheduleIndex}`, JSON.stringify(schedule));
   localStorage.setItem("periods", JSON.stringify(periods));
   localStorage.setItem(`topicColors_${scheduleIndex}`, JSON.stringify(topicColors));
-  
+
   // 4. Render color key per schedule
   renderColorKey(topicColors, wrapper);
 
@@ -323,6 +425,8 @@ function displaySchedule(schedule, periods, scheduleIndex = 1) {
   }
   messageEl.textContent = "Schedule Generated.";
 }
+
+
 
 // 4. Updated renderColorKey()
 function renderColorKey(topicColors, parentEl) {

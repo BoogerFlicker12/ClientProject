@@ -237,7 +237,8 @@ function parseAvailability(availabilityString) {
     if (parts.length < 3 || !parts[i] || !parts[i + 2]) continue;
     const pdMatch = parts[i]?.match(/PD\s*(\d+)/i);
     const period = pdMatch ? parseInt(pdMatch[1]) : null;
-    const date = parts[i + 2] || null;
+    const rawDate = parts[i + 2] || null;
+    const date = normalizeDate(rawDate);
 
     if (period && date) {
       entries.push({ period, date });
@@ -245,6 +246,18 @@ function parseAvailability(availabilityString) {
   }
 
   return entries;
+}
+
+function normalizeDate(dateStr) {
+  if (!dateStr) return null;
+  // Remove weekday if present (e.g. "Tuesday, December 19th" -> "December 19th")
+  const parts = dateStr.split(',');
+  let cleanDate = parts.length > 1 ? parts[1].trim() : parts[0].trim();
+
+  // Remove ordinal suffixes (st, nd, rd, th) from day number
+  cleanDate = cleanDate.replace(/(\d+)(st|nd|rd|th)/, '$1');
+
+  return cleanDate; // e.g. "December 19"
 }
 
 document.getElementById("generateBtn").addEventListener("click", () => {

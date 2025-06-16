@@ -6,7 +6,7 @@ function getColorForTopic(topic, colorMap = {}) {
   return colorMap[topic];
 }
 
-// 1. Add new entry point to generate multiple schedules
+
 function generateSchedule(settings, studentData) {
   const numberOfSchedules = settings.numberOfSchedules || 1;
 
@@ -19,7 +19,6 @@ function generateSingleSchedule(settings, studentData, scheduleIndex) {
   console.log(`Generating Schedule #${scheduleIndex}`);
   console.log("Generating schedules with:", settings, "Student count:", studentData.length);
 
-  // Log key student info to debug availability issues
   console.log("Listing all students and key fields:");
   studentData.forEach(student => {
     console.log({
@@ -158,7 +157,7 @@ function showRoomTopicAssignmentUI(rooms, topicGroups, slotCapacity, onConfirm) 
 
 function normalizeDate(dateString) {
   const d = new Date(dateString);
-  if (isNaN(d)) return dateString; // fallback if invalid date
+  if (isNaN(d)) return dateString; // fallback 
   return d.toISOString().slice(0, 10); // "YYYY-MM-DD"
 }
 
@@ -168,12 +167,10 @@ function finalizeSchedule(rooms, topicGroups, roomTopicMap, studentData, selecte
   const roomAssignments = {};
   const studentAssignments = new Map();
 
-  // Initialize room assignments
   for (const room of rooms) {
     roomAssignments[room] = [];
   }
 
-  // Create all possible slots
   const allSlots = [];
   for (const date of selectedDates) {
     for (const period of periods) {
@@ -185,7 +182,7 @@ function finalizeSchedule(rooms, topicGroups, roomTopicMap, studentData, selecte
     const sameTopicStudents = topicGroups[student["Project topic"].toLowerCase()] || [];
 
     for (const slot of allSlots) {
-      // Normalize dates before comparing
+  
       const isAvailable = student.availabilityParsed.some(avail =>
         normalizeDate(avail.date) === normalizeDate(slot.date) && avail.period === slot.period
       );
@@ -208,7 +205,6 @@ function finalizeSchedule(rooms, topicGroups, roomTopicMap, studentData, selecte
       }
     }
 
-    // Second pass: any slot with availability and space
     for (const slot of allSlots) {
       const isAvailable = student.availabilityParsed.some(avail =>
         normalizeDate(avail.date) === normalizeDate(slot.date) && avail.period === slot.period
@@ -299,7 +295,6 @@ function finalizeSchedule(rooms, topicGroups, roomTopicMap, studentData, selecte
     }
   }
 
-  // Convert to final schedule format
   const finalSchedule = [];
   for (const [room, assignments] of Object.entries(roomAssignments)) {
     for (const assignment of assignments) {
@@ -316,7 +311,6 @@ function finalizeSchedule(rooms, topicGroups, roomTopicMap, studentData, selecte
 
   console.log("✅ Final schedule generated with", finalSchedule.length, "entries");
 
-  // Display the schedule without conflicts
   displaySchedule(finalSchedule, periods, scheduleIndex); 
 }
 
@@ -405,10 +399,8 @@ function displaySchedule(schedule, periods, scheduleIndex = 1) {
   localStorage.setItem("periods", JSON.stringify(periods));
   localStorage.setItem(`topicColors_${scheduleIndex}`, JSON.stringify(topicColors));
 
-  // 4. Render color key per schedule
   renderColorKey(topicColors, wrapper);
 
-  // 5. Add CSV download for each schedule
   const downloadBtn = createDownloadButton(schedule, scheduleIndex);
   wrapper.appendChild(downloadBtn);
 
@@ -428,7 +420,6 @@ function displaySchedule(schedule, periods, scheduleIndex = 1) {
 
 
 
-// 4. Updated renderColorKey()
 function renderColorKey(topicColors, parentEl) {
   const keyContainer = document.createElement("div");
   keyContainer.classList.add("color-key");
@@ -453,14 +444,12 @@ function renderColorKey(topicColors, parentEl) {
   parentEl.appendChild(keyContainer);
 }
 
-// 5. Add CSV download for each schedule
 function createDownloadButton(schedule, scheduleIndex) {
   const button = document.createElement("button");
   button.textContent = `Download CSV for Schedule #${scheduleIndex}`;
   button.style.marginTop = "1em";
 
   button.onclick = () => {
-    // Get the current version from storage (which may have drag-and-drop updates)
     const currentSchedule = JSON.parse(localStorage.getItem(`scheduleData_${scheduleIndex}`)) || schedule;
     
     const rows = [["Date", "Period", "Room", "Student Name", "Project Title", "Topic"]];
@@ -527,7 +516,6 @@ document.getElementById("scheduleTable").addEventListener("drop", e => {
   const dropTarget = e.target.closest("td");
 
   if (dropTarget && dropTarget.classList.contains("schedule-slot") && draggedEl) {
-    // Get the schedule wrapper that contains this drop target
     const scheduleWrapper = dropTarget.closest('.schedule-wrapper');
     const scheduleIndex = scheduleWrapper ? 
       parseInt(scheduleWrapper.querySelector('h2').textContent.replace('Schedule #', '')) : 
@@ -570,11 +558,9 @@ document.getElementById("scheduleTable").addEventListener("drop", e => {
         });
       });
     });
-
-    // Save to the correct schedule-specific storage key
+  
     localStorage.setItem(`scheduleData_${scheduleIndex}`, JSON.stringify(updatedSchedule));
-    
-    // Also update the global scheduleData for backward compatibility
+  
     localStorage.setItem("scheduleData", JSON.stringify(updatedSchedule));
   }
 });
